@@ -7,6 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <title>Чем занят Сеня</title>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#1b1a22;--card:#26252f;--card2:#2f2e3a;--tx:#ece9f3;--mut:#a29fb2;--ln:#3a3946;--pink:#f2b8c6;--blue:#a9c8f0;--mint:#b4e0cc;--peach:#f5cfa8;--lav:#cdbdf0;--yel:#f1e3a1;font-family:Onest,system-ui,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0;height:100%}
@@ -51,10 +52,12 @@ nav button.on{background:var(--card2);color:var(--tx);font-weight:700;box-shadow
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--mint);color:#16261e;padding:10px 18px;border-radius:99px;font-size:14px;font-weight:500;z-index:8;max-width:90%}
 .alarm{position:fixed;inset:0;background:rgba(10,10,14,.9);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;z-index:9;font-size:26px;font-weight:700;text-align:center}
 .alarm button{padding:16px 32px;border-radius:18px;background:var(--pink);color:#2a1b20;font-weight:700;font-size:18px}
+.map{height:340px;border-radius:26px;overflow:hidden;border:1px solid var(--ln);background:#22212b;isolation:isolate}.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.85)}input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;padding:0}.eta{margin:14px 4px 0;color:var(--mut);font-size:15px}.eta b{color:var(--tx)}
 </style>
 </head>
 <body>
 <div id="app"><main id="main"></main><nav id="nav"></nav></div>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 // ====== ВСТАВЬ СВОИ ЗНАЧЕНИЯ ======
@@ -64,7 +67,7 @@ var sb=supabase.createClient(CFG.url,CFG.key);
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){}}
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-var mo=0,F={rule:'once',dows:[]},PS='',S={},A=[],D=[],kicks=[],me=ls('name')||'',owner=false,tab='today',view='main',day=null,toastT='',ring=false,lastKick=0,actx;
+var mo=0,F={rule:'once',dows:[]},PS='',PL=[],TR=[],SEL={},PF={},MAP=null,MV=null,PT=null,pm=null,GW=null,S={},A=[],D=[],kicks=[],me=ls('name')||'',owner=false,tab='today',view='main',day=null,toastT='',ring=false,lastKick=0,actx;
 var P=JSON.parse(ls('prefs')||'{"sound":true,"popup":true,"vib":true}');
 var KC={s:['#f5cfa8','смена'],d:['#a9c8f0','врач'],o:['#b4e0cc','выходной'],x:['#f2b8c6','другое']};
 function cur(){return A.find(function(a){return a.id===S.act})||{name:'—',icon:'❔',color:'#cdbdf0'}}
@@ -75,8 +78,8 @@ function toast(t){toastT=t;render();setTimeout(function(){toastT='';render()},22
 function u8(b){var p='='.repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,function(c){return c.charCodeAt(0)})}
 
 async function load(){
- var r=await Promise.all([sb.from('status').select().eq('id',1).single(),sb.from('activities').select().order('sort'),sb.from('schedule').select().order('at')]);
- S=r[0].data||S;A=r[1].data||A;D=r[2].data||D;
+ var r=await Promise.all([sb.from('status').select().eq('id',1).single(),sb.from('activities').select().order('sort'),sb.from('schedule').select().order('at'),sb.from('places').select().order('sort')]);
+ S=r[0].data||S;A=r[1].data||A;D=r[2].data||D;PL=r[3].data||PL;
  if(owner){var k=await sb.from('kicks').select().order('created_at',{ascending:false}).limit(8);kicks=k.data||[]}
  render();
 }
@@ -112,8 +115,9 @@ async function logout(){await pushOff();await sb.auth.signOut();owner=false;tab=
 function hero(a,big,l1,l2,tag){return '<div class="hero" style="--ac:'+a.color+'"><span class="ico">'+a.icon+'</span><p>'+l1+'</p><div class="big">'+big+'</div>'+(l2?'<p>'+l2+'</p>':'')+(tag?'<span class="tag">'+tag+'</span>':'')+'</div>'}
 function today(){
  var a=cur(),mode=S.busy?'Очень занят, лучше не отвлекать':'Может отвлечься',k='<div class="row"><button class="btn kick" onclick="kick()">Пнуть</button></div>';
- if(view==='route')return '<button class="back" onclick="view=\'main\';render()">‹ Назад</button>'+hero({icon:'🗺️',color:'#b4e0cc'},esc(S.dest||'Гуляет'),'Сейчас на улице',S.eta_min?'Примерно '+S.eta_min+' мин до дома':'','')+'<div class="row"><a class="btn" style="text-align:center;text-decoration:none;color:inherit" target="_blank" rel="noopener" href="https://www.openstreetmap.org/search?query='+encodeURIComponent(S.dest||'')+'">Найти место на карте</a></div><p class="mut">Живая точка на карте появится с Android-приложением.</p>';
- if(S.outside)return '<h1>Сейчас</h1>'+hero({icon:'🚶',color:'#b4e0cc'},'На улице','Сейчас '+(S.act==='dog'?'гуляет с собакой':'гуляет')+(S.dest?': '+esc(S.dest):''),S.eta_min?'Домой примерно через '+S.eta_min+' мин':'',mode)+'<div class="row"><button class="btn" onclick="view=\'route\';render()">Открыть маршрут</button><button class="btn kick" onclick="kick()">Пнуть</button></div><button class="bell'+(ls('bell')==='1'?' on':'')+'" onclick="bell()">'+(ls('bell')==='1'?'🔔 Сообщим о возвращении':'🔕 Сообщить, когда вернётся')+'</button>';
+ if(view==='route'){var P2=(S.trip||[]).map(pl).filter(Boolean),st=S.stop||0,nm=P2[st]?P2[st].name:(P2.length?'домой':''),nx=P2[st+1]?P2[st+1].name:(P2[st]?'домой':'');
+ return '<button class="back" onclick="view=\'main\';render()">‹ Назад</button><div id="map" class="map"></div><p class="eta">'+(P2.length?'Сейчас: <b>'+esc(nm)+'</b>'+(nx?' · дальше: '+esc(nx):''):'Куда: <b>'+esc(S.dest||'гуляет')+'</b>')+'<br>Через сколько будет дома: <b>'+(S.eta_at?'~ '+left(S.eta_at):'неизвестно')+'</b>'+(S.loc_at?'<br><small>Позиция обновлена в '+hm(S.loc_at)+'</small>':'')+'</p>'}
+ if(S.outside)return '<h1>Сейчас</h1>'+hero({icon:'🚶',color:'#b4e0cc'},'На улице','Сейчас '+(S.act==='dog'?'гуляет с собакой':'гуляет')+(S.dest?': '+esc(S.dest):''),S.eta_at?'Домой примерно через '+left(S.eta_at):'',mode)+'<div class="row"><button class="btn" onclick="view=\'route\';MV=null;render()">Открыть маршрут</button><button class="btn kick" onclick="kick()">Пнуть</button></div><button class="bell'+(ls('bell')==='1'?' on':'')+'" onclick="bell()">'+(ls('bell')==='1'?'🔔 Сообщим о возвращении':'🔕 Сообщить, когда вернётся')+'</button>';
  if(S.act==='sleep')return '<h1>Сейчас</h1>'+hero(a,'Лучше не отвлекать','Сейчас спит',S.wake_at?'Осталось спать: '+left(S.wake_at):'Точного времени сна нет','')+k;
  return '<h1>Сейчас</h1>'+hero(a,esc(a.name),'Сейчас делает это',S.until_at?'до '+hm(S.until_at):'',mode)+k;
 }
@@ -128,7 +132,9 @@ function on(e,ds){
  if(e.rule==='dows')return (e.dows||[]).indexOf(new Date(dn(ds)*864e5).getUTCDay())>=0;
  if(e.rule==='cycle')return df%((e.n||1)+(e.m||1))<(e.n||1);
  return false}
-function evOn(ds){return D.filter(function(e){return on(e,ds)}).sort(function(a,b){return (a.at||'').localeCompare(b.at||'')})}
+function evOn(ds){var pd=new Date(dn(ds)*864e5-864e5).toISOString().slice(0,10);
+ var c=D.filter(function(e){return e.at&&e.at_end&&e.at_end<e.at&&on(e,pd)}).map(function(e){return Object.assign({},e,{cont:true})});
+ return D.filter(function(e){return on(e,ds)}).concat(c).sort(function(a,b){return (a.cont?'':a.at||'').localeCompare(b.cont?'':b.at||'')})}
 function rl(e){var r=e.rule;return r==='daily'?'каждый день':r==='every'?'каждые '+e.n+' дн.':r==='dows'?'по дням недели':r==='cycle'?e.n+'/'+e.m:''}
 function calendar(){
  var d=new Date(),b=new Date(d.getFullYear(),d.getMonth()+mo,1),y=b.getFullYear(),m=b.getMonth(),f=(b.getDay()+6)%7,n=new Date(y,m+1,0).getDate();
@@ -142,7 +148,7 @@ function calendar(){
 function modal(){
  var ev=evOn(day),p=day.split('-');
  var h='<div class="modal" onclick="day=null;render()"><div class="sheet" onclick="event.stopPropagation()"><h2>'+(+p[2])+' '+MG[+p[1]-1]+'</h2>';
- h+=ev.length?ev.map(function(e){var k=KC[e.kind]||KC.x;return '<p><span><i class="dot" style="background:'+k[0]+'"></i>'+esc(e.at?e.at+(e.at_end?'–'+e.at_end:'')+' ':'')+esc(e.title)+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span>'+(owner?'<button class="go q" onclick="delEv(\''+e.id+'\',\''+(e.rule&&e.rule!=='once'?1:0)+'\')">×</button>':'')+'</p>'}).join(''):'<p class="mut">Ничего нет</p>';
+ h+=ev.length?ev.map(function(e){var k=KC[e.kind]||KC.x;return '<p><span><i class="dot" style="background:'+k[0]+'"></i>'+esc(e.cont?'до '+e.at_end+' ':(e.at?e.at+(e.at_end?'–'+e.at_end:'')+' ':''))+esc(e.title)+(e.cont?' <small class="mut">(с вчера)</small>':'')+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span>'+(owner?'<button class="go q" onclick="delEv(\''+e.id+'\',\''+(e.rule&&e.rule!=='once'?1:0)+'\')">×</button>':'')+'</p>'}).join(''):'<p class="mut">Ничего нет</p>';
  return h+(owner?form():'')+'</div></div>';
 }
 function rf(){var g=function(i){var x=$(i);return x?x.value:''};if($('ett')){F.t=g('ett');F.a=g('et');F.b=g('ee');F.k=g('ek')||F.k;F.rule=g('er')||F.rule;F.n=g('en');F.m=g('em2');F.u=g('eu')}}
@@ -169,6 +175,39 @@ async function addEv(){
  F={rule:'once',dows:[]};await load()}
 async function delEv(id,rep){if(rep==='1'&&!confirm('Удалить всё повторение целиком?'))return;await sb.from('schedule').delete().eq('id',id);load()}
 async function addAct(){var n=$('an').value.trim();if(!n)return;var c=['#a9c8f0','#f2b8c6','#b4e0cc','#f5cfa8','#cdbdf0','#f1e3a1'][A.length%6];await sb.from('activities').insert({id:'c'+Date.now(),name:n,icon:$('ai').value.trim()||'⭐',color:c,sort:A.length+1});load()}
+function pl(id){return PL.find(function(p){return p.id===id})}
+function dist(a,b){var R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dg=(b.lng-a.lng)*r,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dg/2)*Math.sin(dg/2);return 2*R*Math.asin(Math.sqrt(x))}
+function leg(a,b){var H={lat:S.home_lat,lng:S.home_lng},pa=a==='H'?H:a,pb=b==='H'?H:b;
+ if(a==='H'&&b!=='H'&&b.home_min!=null)return b.home_min;if(b==='H'&&a!=='H'&&a.home_min!=null)return a.home_min;
+ if(pa.lat==null||pb.lat==null)return 10;return Math.max(1,Math.round(dist(pa,pb)*1.3/4.5*60))}
+function calc(ids,i){var P=ids.map(pl).filter(Boolean),n=P.length;if(!n)return 0;if(i>=n)return leg(P[n-1],'H');
+ var t=leg(i===0?'H':P[i-1],P[i]);for(var k=i;k<n;k++){t+=P[k].stay_min||0;t+=k<n-1?leg(P[k],P[k+1]):leg(P[k],'H')}return t}
+function tgp(id){var i=TR.indexOf(id);if(i<0)TR.push(id);else TR.splice(i,1);render()}
+function tgs(id){if(SEL[id])delete SEL[id];else SEL[id]=1}
+function selAll(){if(Object.keys(SEL).length===D.length)SEL={};else D.forEach(function(e){SEL[e.id]=1});render()}
+async function delSel(){var ids=Object.keys(SEL);if(!ids.length)return toast('Ничего не выбрано');if(!confirm('Удалить выбранные ('+ids.length+')? Повторяющиеся удаляются целиком.'))return;await sb.from('schedule').delete().in('id',ids);SEL={};load()}
+async function delPast(){var t=new Date().toISOString().slice(0,10),ids=D.filter(function(e){return ((!e.rule||e.rule==='once')&&e.day<t)||(e.until_day&&e.until_day<t)}).map(function(e){return e.id});if(!ids.length)return toast('Прошедших нет');if(!confirm('Удалить прошедшие ('+ids.length+')?'))return;await sb.from('schedule').delete().in('id',ids);load()}
+async function mapTap(e){
+ if(pm==='home'){pm=null;await setS({home_lat:e.latlng.lat,home_lng:e.latlng.lng});return toast('Дом отмечен')}
+ var g=function(i){return $(i)?$(i).value:''};PF={n:g('pn'),s:g('ps'),h:g('ph')};PT=[e.latlng.lat,e.latlng.lng];render()}
+async function addPl(){var n=$('pn').value.trim();if(!n||!PT)return toast('Поставь точку на карте и напиши название');
+ var r=await sb.from('places').insert({name:n,lat:PT[0],lng:PT[1],stay_min:+$('ps').value||10,home_min:$('ph').value===''?null:+$('ph').value,sort:PL.length});
+ if(r.error)return toast('Ошибка: '+r.error.message);PT=null;PF={};load()}
+async function delPl(id){if(!confirm('Удалить место?'))return;await sb.from('places').delete().eq('id',id);TR=TR.filter(function(x){return x!==id});load()}
+function shareLoc(){
+ if(GW!=null){navigator.geolocation.clearWatch(GW);GW=null;return render()}
+ if(!navigator.geolocation)return toast('Нет геолокации');var last=0;
+ GW=navigator.geolocation.watchPosition(function(p){if(Date.now()-last<20000)return;last=Date.now();S.lat=p.coords.latitude;S.lng=p.coords.longitude;sb.from('status').update({lat:S.lat,lng:S.lng,loc_at:new Date().toISOString()}).eq('id',1)},function(){GW=null;toast('Нет доступа к геопозиции')},{enableHighAccuracy:true});render()}
+function mountMap(){
+ var el=$('map');if(MAP){try{MAP.remove()}catch(e){}MAP=null}if(!el||!window.L)return;
+ MAP=L.map(el);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(MAP);
+ var pts=[],tr=S.trip||[],mk=function(ll,col,tx,r){L.circleMarker(ll,{radius:r||9,color:'#1b1a22',weight:2,fillColor:col,fillOpacity:1}).bindTooltip(tx).addTo(MAP);pts.push(ll)};
+ if(S.home_lat!=null)mk([S.home_lat,S.home_lng],'#a9c8f0','Дом',8);
+ (tab==='panel'?PL:tr.map(pl).filter(Boolean)).forEach(function(p){mk([p.lat,p.lng],S.outside&&tr.indexOf(p.id)===(S.stop||0)?'#f2b8c6':'#b4e0cc',p.name)});
+ if(S.outside&&S.lat!=null)mk([S.lat,S.lng],'#f5cfa8','Сеня',10);
+ if(tab==='panel'&&PT)mk(PT,'#f1e3a1','Новое место');
+ if(MV)MAP.setView(MV.c,MV.z);else if(pts.length>1)MAP.fitBounds(pts,{padding:[30,30],maxZoom:16});else MAP.setView(pts[0]||[50,15],pts.length?15:4);
+ MAP.on('moveend',function(){MV={c:MAP.getCenter(),z:MAP.getZoom()}});if(tab==='panel')MAP.on('click',mapTap)}
 function panel(){
  var h='<h1>Панель</h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
  h+='<h2>Чем занят</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+(x.id===S.act?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';
@@ -177,14 +216,31 @@ function panel(){
  h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
  if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
  h+='<h2>Выход из дома</h2>';
- h+=S.outside?'<div class="f"><button class="big2 go" style="background:var(--blue);color:#12202e" onclick="goHome()">Вернулся</button></div>':'<div class="f"><input id="ds" placeholder="Куда"><input id="eta" type="number" placeholder="Минут" style="flex:0 0 90px"></div><div class="f"><button class="big2 go" style="background:var(--peach);color:#2b2013" onclick="goOut()">Ушёл</button></div>';
+ var ids=S.trip||[],st=S.stop||0,ob='';
+ if(S.outside){
+  if(ids.length)ob+='<p class="mut">'+(pl(ids[st])?'Сейчас: <b>'+esc(pl(ids[st]).name)+'</b>':'Еду домой')+(S.eta_at?' · дома через ~'+left(S.eta_at):'')+'</p>'+(st<ids.length?'<div class="f"><button class="big2 go" onclick="nextStop()">Закончил здесь, еду дальше</button></div>':'');
+  ob+='<div class="f"><button class="go q" onclick="shareLoc()">'+(GW!=null?'Не делиться геопозицией':'Делиться геопозицией')+'</button></div><div class="f"><button class="big2 go" style="background:var(--blue);color:#12202e" onclick="goHome()">Вернулся</button></div>';
+ }else{
+  ob+=PL.length?'<p class="mut">Куда пойдёшь (нажимай по порядку)</p><div class="chips">'+PL.map(function(p){var i=TR.indexOf(p.id);return '<button class="chip'+(i>=0?' on':'')+'" style="--c:#b4e0cc" onclick="tgp(\''+p.id+'\')">'+(i>=0?(i+1)+'. ':'')+esc(p.name)+'</button>'}).join('')+'</div>':'<p class="mut">Добавь места ниже, и маршрут посчитается сам.</p>';
+  ob+=TR.length?'<p class="mut">Всего примерно '+calc(TR,0)+' мин</p>':'<div class="f"><input id="ds" placeholder="Или просто напиши, куда"><input id="eta" type="number" placeholder="Минут" style="flex:0 0 90px"></div>';
+  ob+='<div class="f"><button class="big2 go" style="background:var(--peach);color:#2b2013" onclick="goOut()">Ушёл</button></div>';
+ }
+ h+=ob;
+ h+='<h2>Места</h2><div id="map" class="map" style="height:260px"></div><p class="mut">Тапни по карте, чтобы поставить точку, потом заполни и добавь.</p><div class="f"><input id="pn" placeholder="Название (магазин)" value="'+esc(PF.n||'')+'"></div><div class="f"><input id="ps" type="number" placeholder="Сколько там (мин)" value="'+esc(PF.s||'')+'"><input id="ph" type="number" placeholder="От дома (мин)" value="'+esc(PF.h||'')+'"></div><div class="f"><button class="go" onclick="addPl()">Добавить место</button><button class="go q" onclick="pm=\'home\';toast(\'Тапни по карте, где дом\')">Задать дом</button></div>';
+ h+=PL.map(function(p){return '<div class="tg"><span>'+esc(p.name)+' <small class="mut">· там '+(p.stay_min||0)+' мин'+(p.home_min!=null?' · от дома '+p.home_min:'')+'</small></span><button class="go q" onclick="delPl(\''+p.id+'\')">×</button></div>'}).join('');
+ h+='<h2>Расписание</h2>';
+ h+=D.length?'<div class="f"><button class="go q" onclick="selAll()">Выбрать всё</button><button class="go" style="background:var(--pink);color:#2a1b20" onclick="delSel()">Удалить выбранные</button></div><div class="f"><button class="go q" onclick="delPast()">Удалить прошедшие</button></div><div style="margin-top:10px">'+D.slice().sort(function(a,b){return a.day<b.day?-1:1}).map(function(e){var k=KC[e.kind]||KC.x;return '<label class="tg"><span><i class="dot" style="background:'+k[0]+'"></i>'+e.day.slice(8)+'.'+e.day.slice(5,7)+' '+esc(e.at||'')+' '+esc(e.title)+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span><input type="checkbox" '+(SEL[e.id]?'checked ':'')+'onchange="tgs(\''+e.id+'\')"></label>'}).join('')+'</div>':'<p class="mut">Пусто</p>';
  h+='<h2>Пинки</h2>'+(kicks.length?'<ul class="kicks">'+kicks.map(function(k){return '<li><span>'+esc(k.name)+'</span><span class="mut">'+hm(k.created_at)+'</span></li>'}).join('')+'</ul>':'<p class="mut">Пока никто не пинал.</p>');
  [['sound','Звук'],['popup','Всплывашка'],['vib','Вибрация']].forEach(function(t){h+='<button class="tg'+(P[t[0]]?' on':'')+'" onclick="P.'+t[0]+'=!P.'+t[0]+';ls(\'prefs\',JSON.stringify(P));render()">'+t[1]+'<span>'+(P[t[0]]?'вкл':'выкл')+'</span></button>'});
  h+='<p class="mut">'+esc(PS)+'</p><div class="f"><button class="go" onclick="ownerPush()">Включить пуш на это устройство</button></div><p class="mut">Ссылки для NFC-меток: …/#out (ушёл) и …/#home (вернулся).</p><div class="f"><button class="go q" onclick="logout()">Выйти</button></div>';
  return h;
 }
-async function goOut(){await setS({outside:true,dest:$('ds').value.trim()||null,eta_min:+$('eta').value||null,act:S.act==='dog'?'dog':'walk'})}
-async function goHome(){await setS({outside:false,dest:null,eta_min:null,act:'scroll'})}
+async function goOut(){
+ var ids=TR.slice(),base={outside:true,act:S.act==='dog'?'dog':'walk',lat:null,lng:null};
+ if(ids.length){var m=calc(ids,0);return setS(Object.assign(base,{trip:ids,stop:0,eta_at:new Date(Date.now()+m*6e4).toISOString(),dest:ids.map(function(i){return pl(i).name}).join(' → '),eta_min:null}))}
+ var mm=+($('eta')||{}).value;await setS(Object.assign(base,{trip:[],stop:0,dest:(($('ds')||{}).value||'').trim()||null,eta_at:mm?new Date(Date.now()+mm*6e4).toISOString():null}))}
+async function goHome(){if(GW!=null){navigator.geolocation.clearWatch(GW);GW=null}TR=[];await setS({outside:false,dest:null,eta_min:null,eta_at:null,trip:[],stop:0,lat:null,lng:null,loc_at:null,act:'scroll'})}
+async function nextStop(){var ids=S.trip||[],i=(S.stop||0)+1;await setS({stop:i,eta_at:new Date(Date.now()+calc(ids,i)*6e4).toISOString()})}
 function settings(){
  var h='<h1>Настройки</h1><p class="mut">Твоё имя (Сеня увидит его, когда ты его пнёшь)</p><div class="f"><input id="nm" value="'+esc(me)+'" placeholder="Имя"><button class="go" onclick="saveName()">Сохранить</button></div>';
  if(!owner)h+='<h2>Вход для Сени</h2><div class="f"><input id="em" type="email" placeholder="Почта"></div><div class="f"><input id="pw" type="password" placeholder="Пароль"><button class="go" onclick="login()">Войти</button></div>';
@@ -197,8 +253,8 @@ function render(){
  if(!owner&&!me&&tab!=='set')h='<h1>Привет!</h1><p class="mut">Как тебя зовут? Сеня увидит это, когда ты его пнёшь.</p><div class="f"><input id="nm" placeholder="Твоё имя"><button class="go" onclick="saveName()">Продолжить</button></div>';
  else h=tab==='today'?today():tab==='cal'?calendar():tab==='panel'?panel():settings();
  $('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
- var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель']]:[]).concat([['set','⚙ Настройки']]);
- $('nav').innerHTML=T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;render()">'+t[1]+'</button>'}).join('');
+ mountMap();var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель']]:[]).concat([['set','⚙ Настройки']]);
+ $('nav').innerHTML=T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;MV=null;PT=null;render()">'+t[1]+'</button>'}).join('');
  var o=document.querySelector('.toast');if(o)o.remove();
  if(toastT)document.body.insertAdjacentHTML('beforeend','<div class="toast">'+esc(toastT)+'</div>');
 }
