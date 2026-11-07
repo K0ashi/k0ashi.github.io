@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1a22">
+<link rel="manifest" href="manifest.json">
+<title>Чем занят Сеня</title>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1b1a22;--card:#26252f;--card2:#2f2e3a;--tx:#ece9f3;--mut:#a29fb2;--ln:#3a3946;--pink:#f2b8c6;--blue:#a9c8f0;--mint:#b4e0cc;--peach:#f5cfa8;--lav:#cdbdf0;--yel:#f1e3a1;font-family:Onest,system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--tx);display:flex;justify-content:center;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+#app{width:100%;max-width:460px;height:100%;display:flex;flex-direction:column;position:relative}
+main{flex:1;overflow:auto;padding:18px 18px 8px}
+h1{font-size:15px;font-weight:500;color:var(--mut);margin:0 0 14px}h2{font-size:14px;font-weight:500;color:var(--mut);margin:22px 0 10px}
+.hero{border-radius:26px;padding:22px;background:var(--card);border:1px solid var(--ln);position:relative;overflow:hidden}
+.hero .big{font-size:30px;font-weight:700;line-height:1.1;margin:6px 0 10px;color:var(--ac)}
+.hero .ico{position:absolute;right:16px;top:14px;font-size:60px}
+.hero p{margin:4px 0;color:var(--mut);font-size:15px;max-width:72%}
+.tag{display:inline-block;padding:5px 12px;border-radius:99px;background:var(--ac);color:#1b1a22;font-size:13px;font-weight:700;margin-top:10px}
+.row,.f{display:flex;gap:10px;margin-top:12px}.f{gap:8px}
+button,input,select{font:inherit;color:var(--tx)}button{cursor:pointer;border:0}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.btn{flex:1;padding:17px;border-radius:20px;background:var(--card2);font-size:16px;font-weight:500;border:1px solid var(--ln)}
+.kick{background:var(--pink);color:#2a1b20;font-size:20px;font-weight:700;border:0}.kick:active{transform:scale(.97)}
+.bell{width:100%;margin-top:10px;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--ln)}
+.bell.on{background:var(--yel);color:#2b2713}
+.go{padding:12px 16px;border-radius:14px;background:var(--mint);color:#16261e;font-weight:700}.go.q{background:var(--card2);color:var(--tx)}
+input,select{flex:1;min-width:0;padding:12px;border-radius:14px;border:1px solid var(--ln);background:var(--card)}
+nav{display:flex;gap:8px;padding:10px 14px 12px;border-top:1px solid var(--ln)}
+nav button{flex:1;padding:11px 4px;border-radius:16px;background:none;color:var(--mut);font-size:14px}
+nav button.on{background:var(--card2);color:var(--tx);font-weight:700;box-shadow:inset 0 -3px 0 var(--lav)}
+.back{background:none;color:var(--mut);padding:0 0 12px;font-size:14px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}.cal .w{font-size:12px;color:var(--mut);padding:4px 0}
+.cal button{aspect-ratio:1;border-radius:14px;background:var(--card);font-size:15px;position:relative;border:1px solid transparent}
+.cal button.td{border-color:var(--lav)}.cal .dots{position:absolute;bottom:5px;left:0;right:0;display:flex;justify-content:center;gap:3px}
+.cal i{width:6px;height:6px;border-radius:50%}
+.legend{display:flex;gap:14px;margin-top:14px;font-size:13px;color:var(--mut)}.legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:6px}
+.modal{position:fixed;inset:0;background:rgba(10,10,14,.75);display:flex;align-items:center;justify-content:center;padding:24px;z-index:5}
+.sheet{background:var(--card);border:1px solid var(--lav);border-radius:24px;padding:22px;width:100%;max-width:420px}
+.sheet h2{margin:0 0 12px;font-size:20px;color:var(--tx)}.sheet p{margin:8px 0;display:flex;justify-content:space-between;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{padding:10px 14px;border-radius:99px;background:var(--card);border:1px solid var(--ln);font-size:14px}
+.chip.on{background:var(--c);color:#1b1a22;font-weight:700;border-color:var(--c)}
+.seg{display:flex;gap:8px}.seg button{flex:1;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--ln)}.seg button.on{background:var(--lav);color:#1b1a22;font-weight:700}
+.big2{flex:1;padding:16px;border-radius:18px;font-weight:700}
+.kicks{list-style:none;padding:0;margin:0}.kicks li{padding:12px 14px;background:var(--card);border-radius:14px;margin-bottom:8px;display:flex;justify-content:space-between}
+.tg{display:flex;justify-content:space-between;padding:12px 14px;background:var(--card);border-radius:14px;margin-bottom:8px;width:100%}
+.tg span{padding:3px 10px;border-radius:99px;background:var(--card2);font-size:12px}.tg.on span{background:var(--mint);color:#16261e}
+.mut{color:var(--mut);font-size:13px;margin:6px 0}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--mint);color:#16261e;padding:10px 18px;border-radius:99px;font-size:14px;font-weight:500;z-index:8;max-width:90%}
+.alarm{position:fixed;inset:0;background:rgba(10,10,14,.9);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;z-index:9;font-size:26px;font-weight:700;text-align:center}
+.alarm button{padding:16px 32px;border-radius:18px;background:var(--pink);color:#2a1b20;font-weight:700;font-size:18px}
+</style>
+</head>
+<body>
+<div id="app"><main id="main"></main><nav id="nav"></nav></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+// ====== ВСТАВЬ СВОИ ЗНАЧЕНИЯ ======
+var CFG={url:'https://mzadbfmruytnvjmdojbw.supabase.co',key:'sb_publishable_itBiHEoLck2P5EUO_EMDkQ_1mPADk3G',vapid:'BIKzzVxUiBJpbe_sgrIGEFtW-62fZ9jklhDCePn5QtxAOPRygoZeHpTFRRDVW0YtjDx5EBh-pKi6ESB6xJsw0qk'};
+// ==================================
+var sb=supabase.createClient(CFG.url,CFG.key);
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){}}
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+var S={},A=[],D=[],kicks=[],me=ls('name')||'',owner=false,tab='today',view='main',day=null,toastT='',ring=false,lastKick=0,actx;
+var P=JSON.parse(ls('prefs')||'{"sound":true,"popup":true,"vib":true}');
+var KC={s:['#f5cfa8','смена'],d:['#a9c8f0','врач'],o:['#b4e0cc','выходной'],x:['#f2b8c6','другое']};
+function cur(){return A.find(function(a){return a.id===S.act})||{name:'—',icon:'❔',color:'#cdbdf0'}}
+function hm(t){var d=new Date(t);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+function left(t){var m=Math.max(0,Math.round((new Date(t)-Date.now())/60000));return Math.floor(m/60)+' ч '+m%60+' мин'}
+function tsFrom(v){if(!v)return null;var d=new Date(),p=v.split(':');d.setHours(+p[0],+p[1],0,0);if(d<new Date())d.setDate(d.getDate()+1);return d.toISOString()}
+function toast(t){toastT=t;render();setTimeout(function(){toastT='';render()},2200)}
+function u8(b){var p='='.repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,function(c){return c.charCodeAt(0)})}
+
+async function load(){
+ var r=await Promise.all([sb.from('status').select().eq('id',1).single(),sb.from('activities').select().order('sort'),sb.from('schedule').select().order('at')]);
+ S=r[0].data||S;A=r[1].data||A;D=r[2].data||D;
+ if(owner){var k=await sb.from('kicks').select().order('created_at',{ascending:false}).limit(8);kicks=k.data||[]}
+ render();
+}
+async function setS(p){Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
+async function kick(){
+ if(Date.now()-lastKick<8000)return toast('Подожди пару секунд');lastKick=Date.now();
+ var r=await sb.from('kicks').insert({name:me||'Аноним'});toast(r.error?'Не отправилось':'Пинок отправлен')}
+function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();var t=actx.currentTime;[0,.25].forEach(function(d){var o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(.25,t+d);g.gain.exponentialRampToValueAtTime(.001,t+d+.2);o.connect(g);g.connect(actx.destination);o.start(t+d);o.stop(t+d+.22)})}catch(e){}}
+function incoming(k){
+ if(S.act==='sleep'){ring=true;render();(function l(){if(ring){beep();if(navigator.vibrate)navigator.vibrate([400,150,400]);setTimeout(l,1200)}})();return}
+ if(P.sound)beep();if(P.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
+ if(P.popup&&window.Notification&&Notification.permission==='granted'){try{new Notification(k.name+' пнул тебя')}catch(e){}}
+}
+async function pushSub(role){
+ if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('Браузер не поддерживает уведомления');
+ var reg=await navigator.serviceWorker.register('sw.js');await navigator.serviceWorker.ready;
+ if(await Notification.requestPermission()!=='granted')throw new Error('Разрешение не выдано');
+ var s=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(CFG.vapid)});
+ await sb.rpc('unsub',{e:s.endpoint});
+ var r=await sb.from('subs').insert({endpoint:s.endpoint,data:s.toJSON(),role:role,name:me||null});if(r.error)throw r.error}
+async function pushOff(){try{var reg=await navigator.serviceWorker.getRegistration();var s=reg&&await reg.pushManager.getSubscription();if(s)await sb.rpc('unsub',{e:s.endpoint})}catch(e){}}
+async function bell(){
+ if(ls('bell')==='1'){await pushOff();ls('bell','0');toast('Уведомление выключено')}
+ else{try{await pushSub('friend');ls('bell','1');toast('Сообщим, когда Сеня вернётся')}catch(e){toast(e.message||'Не получилось')}}render()}
+async function ownerPush(){try{await pushSub('owner');toast('Уведомления включены')}catch(e){toast(e.message||'Не получилось')}}
+async function login(){
+ var r=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
+ if(r.error)return toast('Неверная почта или пароль');owner=true;await load();tab='panel';render()}
+async function logout(){await pushOff();await sb.auth.signOut();owner=false;tab='today';render()}
+
+function hero(a,big,l1,l2,tag){return '<div class="hero" style="--ac:'+a.color+'"><span class="ico">'+a.icon+'</span><p>'+l1+'</p><div class="big">'+big+'</div>'+(l2?'<p>'+l2+'</p>':'')+(tag?'<span class="tag">'+tag+'</span>':'')+'</div>'}
+function today(){
+ var a=cur(),mode=S.busy?'Очень занят, лучше не отвлекать':'Может отвлечься',k='<div class="row"><button class="btn kick" onclick="kick()">Пнуть</button></div>';
+ if(view==='route')return '<button class="back" onclick="view=\'main\';render()">‹ Назад</button>'+hero({icon:'🗺️',color:'#b4e0cc'},esc(S.dest||'Гуляет'),'Сейчас на улице',S.eta_min?'Примерно '+S.eta_min+' мин до дома':'','')+'<div class="row"><a class="btn" style="text-align:center;text-decoration:none;color:inherit" target="_blank" rel="noopener" href="https://www.openstreetmap.org/search?query='+encodeURIComponent(S.dest||'')+'">Найти место на карте</a></div><p class="mut">Живая точка на карте появится с Android-приложением.</p>';
+ if(S.outside)return '<h1>Сейчас</h1>'+hero({icon:'🚶',color:'#b4e0cc'},'На улице','Сейчас '+(S.act==='dog'?'гуляет с собакой':'гуляет')+(S.dest?': '+esc(S.dest):''),S.eta_min?'Домой примерно через '+S.eta_min+' мин':'',mode)+'<div class="row"><button class="btn" onclick="view=\'route\';render()">Открыть маршрут</button><button class="btn kick" onclick="kick()">Пнуть</button></div><button class="bell'+(ls('bell')==='1'?' on':'')+'" onclick="bell()">'+(ls('bell')==='1'?'🔔 Сообщим о возвращении':'🔕 Сообщить, когда вернётся')+'</button>';
+ if(S.act==='sleep')return '<h1>Сейчас</h1>'+hero(a,'Лучше не отвлекать','Сейчас спит',S.wake_at?'Осталось спать: '+left(S.wake_at):'Точного времени сна нет','')+k;
+ return '<h1>Сейчас</h1>'+hero(a,esc(a.name),'Сейчас делает это',S.until_at?'до '+hm(S.until_at):'',mode)+k;
+}
+function calendar(){
+ var d=new Date(),y=d.getFullYear(),m=d.getMonth(),f=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate();
+ var h='<h1>'+['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'][m]+' '+y+'</h1><div class="cal">';
+ ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(w){h+='<div class="w">'+w+'</div>'});
+ for(var i=0;i<f;i++)h+='<div></div>';
+ for(var k=1;k<=n;k++){var ds=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+k).slice(-2),ev=D.filter(function(e){return e.day===ds});
+  h+='<button class="'+(k===d.getDate()?'td':'')+'" onclick="day=\''+ds+'\';render()">'+k+'<span class="dots">'+ev.slice(0,3).map(function(e){return '<i style="background:'+(KC[e.kind]||KC.x)[0]+'"></i>'}).join('')+'</span></button>'}
+ return h+'</div><div class="legend">'+Object.keys(KC).map(function(e){return '<span style="--c:'+KC[e][0]+'">'+KC[e][1]+'</span>'}).join('')+'</div>';
+}
+function modal(){
+ var ev=D.filter(function(e){return e.day===day}),p=day.split('-');
+ var mn=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][+p[1]-1];
+ return '<div class="modal" onclick="day=null;render()"><div class="sheet" onclick="event.stopPropagation()"><h2>'+(+p[2])+' '+mn+'</h2>'+(ev.length?ev.map(function(e){return '<p><span>'+esc(e.at||'')+' '+esc(e.title)+'</span>'+(owner?'<button class="go q" onclick="delEv(\''+e.id+'\')">×</button>':'')+'</p>'}).join(''):'<p class="mut">Ничего нет</p>')+
+ (owner?'<div class="f"><input id="et" type="time" style="flex:0 0 100px"><input id="ett" placeholder="Что"><select id="ek" style="flex:0 0 90px">'+Object.keys(KC).map(function(k){return '<option value="'+k+'">'+KC[k][1]+'</option>'}).join('')+'</select></div><div class="f"><button class="go" style="width:100%" onclick="addEv()">Добавить</button></div>':'')+'</div></div>';
+}
+async function addEv(){var t=$('ett').value.trim();if(!t)return;await sb.from('schedule').insert({day:day,at:$('et').value||null,title:t,kind:$('ek').value});load()}
+async function delEv(id){await sb.from('schedule').delete().eq('id',id);load()}
+async function addAct(){var n=$('an').value.trim();if(!n)return;var c=['#a9c8f0','#f2b8c6','#b4e0cc','#f5cfa8','#cdbdf0','#f1e3a1'][A.length%6];await sb.from('activities').insert({id:'c'+Date.now(),name:n,icon:$('ai').value.trim()||'⭐',color:c,sort:A.length+1});load()}
+function panel(){
+ var h='<h1>Панель</h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
+ h+='<h2>Чем занят</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+(x.id===S.act?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';
+ h+='<div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>';
+ h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
+ h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
+ if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
+ h+='<h2>Выход из дома</h2>';
+ h+=S.outside?'<div class="f"><button class="big2 go" style="background:var(--blue);color:#12202e" onclick="goHome()">Вернулся</button></div>':'<div class="f"><input id="ds" placeholder="Куда"><input id="eta" type="number" placeholder="Минут" style="flex:0 0 90px"></div><div class="f"><button class="big2 go" style="background:var(--peach);color:#2b2013" onclick="goOut()">Ушёл</button></div>';
+ h+='<h2>Пинки</h2>'+(kicks.length?'<ul class="kicks">'+kicks.map(function(k){return '<li><span>'+esc(k.name)+'</span><span class="mut">'+hm(k.created_at)+'</span></li>'}).join('')+'</ul>':'<p class="mut">Пока никто не пинал.</p>');
+ [['sound','Звук'],['popup','Всплывашка'],['vib','Вибрация']].forEach(function(t){h+='<button class="tg'+(P[t[0]]?' on':'')+'" onclick="P.'+t[0]+'=!P.'+t[0]+';ls(\'prefs\',JSON.stringify(P));render()">'+t[1]+'<span>'+(P[t[0]]?'вкл':'выкл')+'</span></button>'});
+ h+='<div class="f"><button class="go" onclick="ownerPush()">Включить пуш на это устройство</button></div><p class="mut">Ссылки для NFC-меток: …/#out (ушёл) и …/#home (вернулся).</p><div class="f"><button class="go q" onclick="logout()">Выйти</button></div>';
+ return h;
+}
+async function goOut(){await setS({outside:true,dest:$('ds').value.trim()||null,eta_min:+$('eta').value||null,act:S.act==='dog'?'dog':'walk'})}
+async function goHome(){await setS({outside:false,dest:null,eta_min:null,act:'scroll'})}
+function settings(){
+ var h='<h1>Настройки</h1><p class="mut">Твоё имя (Сеня увидит его, когда ты его пнёшь)</p><div class="f"><input id="nm" value="'+esc(me)+'" placeholder="Имя"><button class="go" onclick="saveName()">Сохранить</button></div>';
+ if(!owner)h+='<h2>Вход для Сени</h2><div class="f"><input id="em" type="email" placeholder="Почта"></div><div class="f"><input id="pw" type="password" placeholder="Пароль"><button class="go" onclick="login()">Войти</button></div>';
+ return h;
+}
+function saveName(){var v=$('nm').value.trim();if(!v)return;me=v;ls('name',v);toast('Сохранено');render()}
+function render(){
+ var ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&!toastT)return;
+ var h;
+ if(!owner&&!me&&tab!=='set')h='<h1>Привет!</h1><p class="mut">Как тебя зовут? Сеня увидит это, когда ты его пнёшь.</p><div class="f"><input id="nm" placeholder="Твоё имя"><button class="go" onclick="saveName()">Продолжить</button></div>';
+ else h=tab==='today'?today():tab==='cal'?calendar():tab==='panel'?panel():settings();
+ $('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
+ var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель']]:[]).concat([['set','⚙ Настройки']]);
+ $('nav').innerHTML=T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;render()">'+t[1]+'</button>'}).join('');
+ var o=document.querySelector('.toast');if(o)o.remove();
+ if(toastT)document.body.insertAdjacentHTML('beforeend','<div class="toast">'+esc(toastT)+'</div>');
+}
+(async function(){
+ render();
+ var s=await sb.auth.getSession();owner=!!(s.data&&s.data.session);if(owner)tab='panel';
+ await load();
+ if(owner&&location.hash==='#out'){await setS({outside:true,dest:S.dest||null,act:'walk'});history.replaceState(null,'','./')}
+ if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
+ sb.channel('all').on('postgres_changes',{event:'*',schema:'public'},function(p){
+  if(p.table==='kicks'&&p.eventType==='INSERT'&&owner)incoming(p.new);load()}).subscribe();
+ setInterval(load,60000);
+ if(navigator.serviceWorker)navigator.serviceWorker.register('sw.js').catch(function(){});
+})();
+</script>
+</body>
+</html>
