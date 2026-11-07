@@ -37,7 +37,7 @@ nav button.on{background:var(--card2);color:var(--tx);font-weight:700;box-shadow
 .cal button.td{border-color:var(--lav)}.cal .dots{position:absolute;bottom:5px;left:0;right:0;display:flex;justify-content:center;gap:3px}
 .cal i{width:6px;height:6px;border-radius:50%}
 .legend{display:flex;gap:14px;margin-top:14px;font-size:13px;color:var(--mut)}.legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:6px}
-.modal{position:fixed;inset:0;background:rgba(10,10,14,.75);display:flex;align-items:center;justify-content:center;padding:24px;z-index:5}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px}.sheet{max-height:90vh;overflow:auto}.modal{position:fixed;inset:0;background:rgba(10,10,14,.75);display:flex;align-items:center;justify-content:center;padding:24px;z-index:5}
 .sheet{background:var(--card);border:1px solid var(--lav);border-radius:24px;padding:22px;width:100%;max-width:420px}
 .sheet h2{margin:0 0 12px;font-size:20px;color:var(--tx)}.sheet p{margin:8px 0;display:flex;justify-content:space-between;gap:8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}.chip{padding:10px 14px;border-radius:99px;background:var(--card);border:1px solid var(--ln);font-size:14px}
@@ -64,7 +64,7 @@ var sb=supabase.createClient(CFG.url,CFG.key);
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){}}
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-var S={},A=[],D=[],kicks=[],me=ls('name')||'',owner=false,tab='today',view='main',day=null,toastT='',ring=false,lastKick=0,actx;
+var mo=0,F={rule:'once',dows:[]},PS='',S={},A=[],D=[],kicks=[],me=ls('name')||'',owner=false,tab='today',view='main',day=null,toastT='',ring=false,lastKick=0,actx;
 var P=JSON.parse(ls('prefs')||'{"sound":true,"popup":true,"vib":true}');
 var KC={s:['#f5cfa8','смена'],d:['#a9c8f0','врач'],o:['#b4e0cc','выходной'],x:['#f2b8c6','другое']};
 function cur(){return A.find(function(a){return a.id===S.act})||{name:'—',icon:'❔',color:'#cdbdf0'}}
@@ -84,11 +84,13 @@ async function setS(p){Object.assign(S,p);render();var r=await sb.from('status')
 async function kick(){
  if(Date.now()-lastKick<8000)return toast('Подожди пару секунд');lastKick=Date.now();
  var r=await sb.from('kicks').insert({name:me||'Аноним'});toast(r.error?'Не отправилось':'Пинок отправлен')}
+function showN(t){try{if(!window.Notification||Notification.permission!=='granted')return;navigator.serviceWorker.getRegistration().then(function(r){if(r)r.showNotification(t,{tag:'kick',renotify:true,vibrate:[200,100,200],icon:'icon.svg'})})}catch(e){}}
+async function checkPush(){try{var r=await navigator.serviceWorker.getRegistration();var q=r&&await r.pushManager.getSubscription();PS=Notification.permission==='granted'?(q?'Пуш включён на этом устройстве':'Разрешение есть, но пуш не подписан: нажми кнопку ниже'):Notification.permission==='denied'?'Уведомления заблокированы в настройках браузера':'Пуш не включён'}catch(e){PS='Пуш не поддерживается'}render()}
 function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();var t=actx.currentTime;[0,.25].forEach(function(d){var o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(.25,t+d);g.gain.exponentialRampToValueAtTime(.001,t+d+.2);o.connect(g);g.connect(actx.destination);o.start(t+d);o.stop(t+d+.22)})}catch(e){}}
 function incoming(k){
  if(S.act==='sleep'){ring=true;render();(function l(){if(ring){beep();if(navigator.vibrate)navigator.vibrate([400,150,400]);setTimeout(l,1200)}})();return}
  if(P.sound)beep();if(P.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
- if(P.popup&&window.Notification&&Notification.permission==='granted'){try{new Notification(k.name+' пнул тебя')}catch(e){}}
+ if(P.popup)showN(k.name+' пнул тебя');
 }
 async function pushSub(role){
  if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('Браузер не поддерживает уведомления');
@@ -101,7 +103,7 @@ async function pushOff(){try{var reg=await navigator.serviceWorker.getRegistrati
 async function bell(){
  if(ls('bell')==='1'){await pushOff();ls('bell','0');toast('Уведомление выключено')}
  else{try{await pushSub('friend');ls('bell','1');toast('Сообщим, когда Сеня вернётся')}catch(e){toast(e.message||'Не получилось')}}render()}
-async function ownerPush(){try{await pushSub('owner');toast('Уведомления включены')}catch(e){toast(e.message||'Не получилось')}}
+async function ownerPush(){try{await pushSub('owner');toast('Уведомления включены');checkPush()}catch(e){toast(e.message||'Не получилось')}}
 async function login(){
  var r=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
  if(r.error)return toast('Неверная почта или пароль');owner=true;await load();tab='panel';render()}
@@ -115,23 +117,57 @@ function today(){
  if(S.act==='sleep')return '<h1>Сейчас</h1>'+hero(a,'Лучше не отвлекать','Сейчас спит',S.wake_at?'Осталось спать: '+left(S.wake_at):'Точного времени сна нет','')+k;
  return '<h1>Сейчас</h1>'+hero(a,esc(a.name),'Сейчас делает это',S.until_at?'до '+hm(S.until_at):'',mode)+k;
 }
+var MN=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],MG=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+function dn(s){var p=s.split('-');return Date.UTC(+p[0],+p[1]-1,+p[2])/864e5}
+function on(e,ds){
+ if(!e.rule||e.rule==='once')return e.day===ds;
+ if(ds<e.day||(e.until_day&&ds>e.until_day))return false;
+ var df=dn(ds)-dn(e.day);
+ if(e.rule==='daily')return true;
+ if(e.rule==='every')return df%(e.n||1)===0;
+ if(e.rule==='dows')return (e.dows||[]).indexOf(new Date(dn(ds)*864e5).getUTCDay())>=0;
+ if(e.rule==='cycle')return df%((e.n||1)+(e.m||1))<(e.n||1);
+ return false}
+function evOn(ds){return D.filter(function(e){return on(e,ds)}).sort(function(a,b){return (a.at||'').localeCompare(b.at||'')})}
+function rl(e){var r=e.rule;return r==='daily'?'каждый день':r==='every'?'каждые '+e.n+' дн.':r==='dows'?'по дням недели':r==='cycle'?e.n+'/'+e.m:''}
 function calendar(){
- var d=new Date(),y=d.getFullYear(),m=d.getMonth(),f=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate();
- var h='<h1>'+['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'][m]+' '+y+'</h1><div class="cal">';
+ var d=new Date(),b=new Date(d.getFullYear(),d.getMonth()+mo,1),y=b.getFullYear(),m=b.getMonth(),f=(b.getDay()+6)%7,n=new Date(y,m+1,0).getDate();
+ var h='<div class="f" style="justify-content:space-between;align-items:center;margin:0 0 14px"><button class="go q" onclick="mo--;render()">‹</button><h1 style="margin:0">'+MN[m]+' '+y+'</h1><button class="go q" onclick="mo++;render()">›</button></div><div class="cal">';
  ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(w){h+='<div class="w">'+w+'</div>'});
  for(var i=0;i<f;i++)h+='<div></div>';
- for(var k=1;k<=n;k++){var ds=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+k).slice(-2),ev=D.filter(function(e){return e.day===ds});
-  h+='<button class="'+(k===d.getDate()?'td':'')+'" onclick="day=\''+ds+'\';render()">'+k+'<span class="dots">'+ev.slice(0,3).map(function(e){return '<i style="background:'+(KC[e.kind]||KC.x)[0]+'"></i>'}).join('')+'</span></button>'}
+ for(var k=1;k<=n;k++){var ds=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+k).slice(-2),ev=evOn(ds);
+  h+='<button class="'+(mo===0&&k===d.getDate()?'td':'')+'" onclick="day=\''+ds+'\';render()">'+k+'<span class="dots">'+ev.slice(0,3).map(function(e){return '<i style="background:'+(KC[e.kind]||KC.x)[0]+'"></i>'}).join('')+'</span></button>'}
  return h+'</div><div class="legend">'+Object.keys(KC).map(function(e){return '<span style="--c:'+KC[e][0]+'">'+KC[e][1]+'</span>'}).join('')+'</div>';
 }
 function modal(){
- var ev=D.filter(function(e){return e.day===day}),p=day.split('-');
- var mn=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][+p[1]-1];
- return '<div class="modal" onclick="day=null;render()"><div class="sheet" onclick="event.stopPropagation()"><h2>'+(+p[2])+' '+mn+'</h2>'+(ev.length?ev.map(function(e){return '<p><span>'+esc(e.at||'')+' '+esc(e.title)+'</span>'+(owner?'<button class="go q" onclick="delEv(\''+e.id+'\')">×</button>':'')+'</p>'}).join(''):'<p class="mut">Ничего нет</p>')+
- (owner?'<div class="f"><input id="et" type="time" style="flex:0 0 100px"><input id="ett" placeholder="Что"><select id="ek" style="flex:0 0 90px">'+Object.keys(KC).map(function(k){return '<option value="'+k+'">'+KC[k][1]+'</option>'}).join('')+'</select></div><div class="f"><button class="go" style="width:100%" onclick="addEv()">Добавить</button></div>':'')+'</div></div>';
+ var ev=evOn(day),p=day.split('-');
+ var h='<div class="modal" onclick="day=null;render()"><div class="sheet" onclick="event.stopPropagation()"><h2>'+(+p[2])+' '+MG[+p[1]-1]+'</h2>';
+ h+=ev.length?ev.map(function(e){var k=KC[e.kind]||KC.x;return '<p><span><i class="dot" style="background:'+k[0]+'"></i>'+esc(e.at?e.at+(e.at_end?'–'+e.at_end:'')+' ':'')+esc(e.title)+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span>'+(owner?'<button class="go q" onclick="delEv(\''+e.id+'\',\''+(e.rule&&e.rule!=='once'?1:0)+'\')">×</button>':'')+'</p>'}).join(''):'<p class="mut">Ничего нет</p>';
+ return h+(owner?form():'')+'</div></div>';
 }
-async function addEv(){var t=$('ett').value.trim();if(!t)return;await sb.from('schedule').insert({day:day,at:$('et').value||null,title:t,kind:$('ek').value});load()}
-async function delEv(id){await sb.from('schedule').delete().eq('id',id);load()}
+function rf(){var g=function(i){var x=$(i);return x?x.value:''};if($('ett')){F.t=g('ett');F.a=g('et');F.b=g('ee');F.k=g('ek')||F.k;F.rule=g('er')||F.rule;F.n=g('en');F.m=g('em2');F.u=g('eu')}}
+function tgd(v){rf();var i=F.dows.indexOf(v);if(i<0)F.dows.push(v);else F.dows.splice(i,1);render()}
+function form(){
+ var R=F.rule||'once',DN=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'],DV=[1,2,3,4,5,6,0];
+ var h='<h2 style="font-size:14px;margin:18px 0 8px;color:var(--mut)">Добавить занятие в этот день</h2><div class="f"><input id="ett" placeholder="Что (например, смена)" value="'+esc(F.t||'')+'"></div>';
+ h+='<div class="f"><input id="et" type="time" value="'+esc(F.a||'')+'"><input id="ee" type="time" value="'+esc(F.b||'')+'"><select id="ek" style="flex:0 0 100px">'+Object.keys(KC).map(function(k){return '<option value="'+k+'"'+(F.k===k?' selected':'')+'>'+KC[k][1]+'</option>'}).join('')+'</select></div><p class="mut">Начало, конец (необязательно), тип</p>';
+ h+='<div class="f"><select id="er" onchange="rf();render()">'+[['once','Один раз'],['daily','Каждый день'],['every','Каждые N дней'],['dows','По дням недели'],['cycle','Цикл: работа / выходные (2/2, 1/3…)']].map(function(o){return '<option value="'+o[0]+'"'+(R===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></div>';
+ if(R==='every')h+='<div class="f"><input id="en" type="number" min="2" placeholder="Раз в сколько дней" value="'+esc(F.n||'')+'"></div>';
+ if(R==='cycle')h+='<div class="f"><input id="en" type="number" min="1" placeholder="Рабочих дней" value="'+esc(F.n||'')+'"><input id="em2" type="number" min="1" placeholder="Выходных" value="'+esc(F.m||'')+'"></div><p class="mut">Считается от этого дня: сначала рабочие дни, потом выходные.</p>';
+ if(R==='dows')h+='<div class="chips">'+DN.map(function(n,i){return '<button class="chip'+(F.dows.indexOf(DV[i])>=0?' on':'')+'" style="--c:#cdbdf0" onclick="tgd('+DV[i]+')">'+n+'</button>'}).join('')+'</div>';
+ if(R!=='once')h+='<p class="mut">Повторять до (необязательно)</p><div class="f"><input id="eu" type="date" value="'+esc(F.u||'')+'"></div>';
+ return h+'<div class="f"><button class="go" style="width:100%" onclick="addEv()">Добавить</button></div>';
+}
+async function addEv(){
+ rf();if(!(F.t||'').trim())return toast('Напиши название');
+ var R=F.rule||'once',row={day:day,at:F.a||null,at_end:F.b||null,title:F.t.trim(),kind:F.k||'s',rule:R};
+ if(R==='every'){row.n=+F.n;if(!(row.n>=2))return toast('Укажи, раз в сколько дней (от 2)')}
+ if(R==='cycle'){row.n=+F.n;row.m=+F.m;if(!(row.n>=1&&row.m>=1))return toast('Укажи рабочие дни и выходные')}
+ if(R==='dows'){if(!F.dows.length)return toast('Выбери дни недели');row.dows=F.dows.slice()}
+ if(R!=='once'&&F.u)row.until_day=F.u;
+ var r=await sb.from('schedule').insert(row);if(r.error)return toast('Не сохранилось: '+r.error.message);
+ F={rule:'once',dows:[]};await load()}
+async function delEv(id,rep){if(rep==='1'&&!confirm('Удалить всё повторение целиком?'))return;await sb.from('schedule').delete().eq('id',id);load()}
 async function addAct(){var n=$('an').value.trim();if(!n)return;var c=['#a9c8f0','#f2b8c6','#b4e0cc','#f5cfa8','#cdbdf0','#f1e3a1'][A.length%6];await sb.from('activities').insert({id:'c'+Date.now(),name:n,icon:$('ai').value.trim()||'⭐',color:c,sort:A.length+1});load()}
 function panel(){
  var h='<h1>Панель</h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
@@ -144,7 +180,7 @@ function panel(){
  h+=S.outside?'<div class="f"><button class="big2 go" style="background:var(--blue);color:#12202e" onclick="goHome()">Вернулся</button></div>':'<div class="f"><input id="ds" placeholder="Куда"><input id="eta" type="number" placeholder="Минут" style="flex:0 0 90px"></div><div class="f"><button class="big2 go" style="background:var(--peach);color:#2b2013" onclick="goOut()">Ушёл</button></div>';
  h+='<h2>Пинки</h2>'+(kicks.length?'<ul class="kicks">'+kicks.map(function(k){return '<li><span>'+esc(k.name)+'</span><span class="mut">'+hm(k.created_at)+'</span></li>'}).join('')+'</ul>':'<p class="mut">Пока никто не пинал.</p>');
  [['sound','Звук'],['popup','Всплывашка'],['vib','Вибрация']].forEach(function(t){h+='<button class="tg'+(P[t[0]]?' on':'')+'" onclick="P.'+t[0]+'=!P.'+t[0]+';ls(\'prefs\',JSON.stringify(P));render()">'+t[1]+'<span>'+(P[t[0]]?'вкл':'выкл')+'</span></button>'});
- h+='<div class="f"><button class="go" onclick="ownerPush()">Включить пуш на это устройство</button></div><p class="mut">Ссылки для NFC-меток: …/#out (ушёл) и …/#home (вернулся).</p><div class="f"><button class="go q" onclick="logout()">Выйти</button></div>';
+ h+='<p class="mut">'+esc(PS)+'</p><div class="f"><button class="go" onclick="ownerPush()">Включить пуш на это устройство</button></div><p class="mut">Ссылки для NFC-меток: …/#out (ушёл) и …/#home (вернулся).</p><div class="f"><button class="go q" onclick="logout()">Выйти</button></div>';
  return h;
 }
 async function goOut(){await setS({outside:true,dest:$('ds').value.trim()||null,eta_min:+$('eta').value||null,act:S.act==='dog'?'dog':'walk'})}
@@ -169,7 +205,7 @@ function render(){
 (async function(){
  render();
  var s=await sb.auth.getSession();owner=!!(s.data&&s.data.session);if(owner)tab='panel';
- await load();
+ await load();if(owner)checkPush();
  if(owner&&location.hash==='#out'){await setS({outside:true,dest:S.dest||null,act:'walk'});history.replaceState(null,'','./')}
  if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
  sb.channel('all').on('postgres_changes',{event:'*',schema:'public'},function(p){
