@@ -74,6 +74,7 @@ function cur(){return A.find(function(a){return a.id===S.act})||{name:'—',icon
 function hm(t){var d=new Date(t);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 function left(t){var m=Math.max(0,Math.round((new Date(t)-Date.now())/60000));return Math.floor(m/60)+' ч '+m%60+' мин'}
 function etaT(t){return new Date(t)>Date.now()?'примерно через '+left(t):'уже скоро, задерживается'}
+function syncAlarm(){if(!owner||!window.Android||!Android.getNextAlarm||S.act!=='sleep')return;var al=Android.getNextAlarm(),iso=al>0?new Date(al).toISOString():null;if((iso||'')!==(S.wake_at?new Date(S.wake_at).toISOString():''))setS({wake_at:iso})}
 function tsFrom(v){if(!v)return null;var d=new Date(),p=v.split(':');d.setHours(+p[0],+p[1],0,0);if(d<new Date())d.setDate(d.getDate()+1);return d.toISOString()}
 function toast(t){toastT=t;render();setTimeout(function(){toastT='';render()},2200)}
 function u8(b){var p='='.repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,function(c){return c.charCodeAt(0)})}
@@ -84,7 +85,7 @@ async function load(){
  if(owner){var k=await sb.from('kicks').select().order('created_at',{ascending:false}).limit(8);kicks=k.data||[]}
  render();
 }
-async function setS(p){Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
+async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=Android.getNextAlarm();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
 async function kick(){
  if(Date.now()-lastKick<8000)return toast('Подожди пару секунд');lastKick=Date.now();
  var r=await sb.from('kicks').insert({name:me||'Аноним'});toast(r.error?'Не отправилось':'Пинок отправлен')}
@@ -92,6 +93,7 @@ function showN(t){try{if(!window.Notification||Notification.permission!=='grante
 async function checkPush(){try{var r=await navigator.serviceWorker.getRegistration();var q=r&&await r.pushManager.getSubscription();PS=Notification.permission==='granted'?(q?'Пуш включён на этом устройстве':'Разрешение есть, но пуш не подписан: нажми кнопку ниже'):Notification.permission==='denied'?'Уведомления заблокированы в настройках браузера':'Пуш не включён'}catch(e){PS='Пуш не поддерживается'}render()}
 function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();var t=actx.currentTime;[0,.25].forEach(function(d){var o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(.25,t+d);g.gain.exponentialRampToValueAtTime(.001,t+d+.2);o.connect(g);g.connect(actx.destination);o.start(t+d);o.stop(t+d+.22)})}catch(e){}}
 function incoming(k){
+ if(window.Android&&Android.watching&&Android.watching())return;
  if(S.act==='sleep'){ring=true;render();(function l(){if(ring){beep();if(navigator.vibrate)navigator.vibrate([400,150,400]);setTimeout(l,1200)}})();return}
  if(P.sound)beep();if(P.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
  if(P.popup){if(window.Android&&Android.notify)Android.notify(k.name+' пнул тебя');else showN(k.name+' пнул тебя')}
@@ -111,7 +113,7 @@ async function ownerPush(){try{await pushSub('owner');toast('Уведомлен�
 async function login(){
  var r=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
  if(r.error)return toast('Неверная почта или пароль');if(window.Android)Android.saveLogin($('em').value,$('pw').value);owner=true;await load();tab='panel';render()}
-async function logout(){await pushOff();await sb.auth.signOut();owner=false;tab='today';render()}
+async function logout(){if(window.Android)Android.logout();await pushOff();await sb.auth.signOut();owner=false;tab='today';render()}
 
 function hero(a,big,l1,l2,tag){return '<div class="hero" style="--ac:'+a.color+'"><span class="ico">'+a.icon+'</span><p>'+l1+'</p><div class="big">'+big+'</div>'+(l2?'<p>'+l2+'</p>':'')+(tag?'<span class="tag">'+tag+'</span>':'')+'</div>'}
 function today(){
@@ -268,7 +270,7 @@ function render(){
  if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
  sb.channel('all').on('postgres_changes',{event:'*',schema:'public'},function(p){
   if(p.table==='kicks'&&p.eventType==='INSERT'&&owner)incoming(p.new);load()}).subscribe();
- setInterval(load,60000);document.addEventListener('click',function(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}},{once:true});
+ setInterval(function(){load();syncAlarm()},60000);document.addEventListener('click',function(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}},{once:true});
  if(navigator.serviceWorker)navigator.serviceWorker.register('sw.js').catch(function(){});
 })();
 </script>
