@@ -73,6 +73,7 @@ var KC={s:['#f5cfa8','смена'],d:['#a9c8f0','врач'],o:['#b4e0cc','вых
 function cur(){return A.find(function(a){return a.id===S.act})||{name:'—',icon:'❔',color:'#cdbdf0'}}
 function hm(t){var d=new Date(t);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 function left(t){var m=Math.max(0,Math.round((new Date(t)-Date.now())/60000));return Math.floor(m/60)+' ч '+m%60+' мин'}
+function etaT(t){return new Date(t)>Date.now()?'примерно через '+left(t):'уже скоро, задерживается'}
 function tsFrom(v){if(!v)return null;var d=new Date(),p=v.split(':');d.setHours(+p[0],+p[1],0,0);if(d<new Date())d.setDate(d.getDate()+1);return d.toISOString()}
 function toast(t){toastT=t;render();setTimeout(function(){toastT='';render()},2200)}
 function u8(b){var p='='.repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,function(c){return c.charCodeAt(0)})}
@@ -116,8 +117,8 @@ function hero(a,big,l1,l2,tag){return '<div class="hero" style="--ac:'+a.color+'
 function today(){
  var a=cur(),mode=S.busy?'Очень занят, лучше не отвлекать':'Может отвлечься',k='<div class="row"><button class="btn kick" onclick="kick()">Пнуть</button></div>';
  if(view==='route'){var P2=(S.trip||[]).map(pl).filter(Boolean),st=S.stop||0,nm=P2[st]?P2[st].name:(P2.length?'домой':''),nx=P2[st+1]?P2[st+1].name:(P2[st]?'домой':'');
- return '<button class="back" onclick="view=\'main\';render()">‹ Назад</button><div id="map" class="map"></div><p class="eta">'+(P2.length?'Сейчас: <b>'+esc(nm)+'</b>'+(nx?' · дальше: '+esc(nx):''):'Куда: <b>'+esc(S.dest||'гуляет')+'</b>')+'<br>Через сколько будет дома: <b>'+(S.eta_at?'~ '+left(S.eta_at):'неизвестно')+'</b>'+(S.loc_at?'<br><small>Позиция обновлена в '+hm(S.loc_at)+'</small>':'')+'</p>'}
- if(S.outside)return '<h1>Сейчас</h1>'+hero({icon:'🚶',color:'#b4e0cc'},'На улице','Сейчас '+(S.act==='dog'?'гуляет с собакой':'гуляет')+(S.dest?': '+esc(S.dest):''),S.eta_at?'Домой примерно через '+left(S.eta_at):'',mode)+'<div class="row"><button class="btn" onclick="view=\'route\';MV=null;render()">Открыть маршрут</button><button class="btn kick" onclick="kick()">Пнуть</button></div><button class="bell'+(ls('bell')==='1'?' on':'')+'" onclick="bell()">'+(ls('bell')==='1'?'🔔 Сообщим о возвращении':'🔕 Сообщить, когда вернётся')+'</button>';
+ return '<button class="back" onclick="view=\'main\';render()">‹ Назад</button><div id="map" class="map"></div><p class="eta">'+(P2.length?'Сейчас: <b>'+esc(nm)+'</b>'+(nx?' · дальше: '+esc(nx):''):'Куда: <b>'+esc(S.dest||'гуляет')+'</b>')+'<br>Через сколько будет дома: <b>'+(S.eta_at?etaT(S.eta_at):'неизвестно')+'</b>'+(S.loc_at?'<br><small>Позиция обновлена в '+hm(S.loc_at)+'</small>':'')+'</p>'}
+ if(S.outside)return '<h1>Сейчас</h1>'+hero({icon:'🚶',color:'#b4e0cc'},'На улице','Сейчас '+(S.act==='dog'?'гуляет с собакой':'гуляет')+(S.dest?': '+esc(S.dest):''),S.eta_at?'Домой '+etaT(S.eta_at):'',mode)+'<div class="row"><button class="btn" onclick="view=\'route\';MV=null;render()">Открыть маршрут</button><button class="btn kick" onclick="kick()">Пнуть</button></div><button class="bell'+(ls('bell')==='1'?' on':'')+'" onclick="bell()">'+(ls('bell')==='1'?'🔔 Сообщим о возвращении':'🔕 Сообщить, когда вернётся')+'</button>';
  if(S.act==='sleep')return '<h1>Сейчас</h1>'+hero(a,'Лучше не отвлекать','Сейчас спит',S.wake_at?'Осталось спать: '+left(S.wake_at):'Точного времени сна нет','')+k;
  return '<h1>Сейчас</h1>'+hero(a,esc(a.name),'Сейчас делает это',S.until_at?'до '+hm(S.until_at):'',mode)+k;
 }
@@ -218,7 +219,7 @@ function panel(){
  h+='<h2>Выход из дома</h2>';
  var ids=S.trip||[],st=S.stop||0,ob='';
  if(S.outside){
-  if(ids.length)ob+='<p class="mut">'+(pl(ids[st])?'Сейчас: <b>'+esc(pl(ids[st]).name)+'</b>':'Еду домой')+(S.eta_at?' · дома через ~'+left(S.eta_at):'')+'</p>'+(st<ids.length?'<div class="f"><button class="big2 go" onclick="nextStop()">Закончил здесь, еду дальше</button></div>':'');
+  if(ids.length)ob+='<p class="mut">'+(pl(ids[st])?'Сейчас: <b>'+esc(pl(ids[st]).name)+'</b>':'Еду домой')+(S.eta_at?' · дома '+etaT(S.eta_at):'')+'</p>'+(st<ids.length?'<div class="f"><button class="big2 go" onclick="nextStop()">Закончил здесь, еду дальше</button></div>':'');
   ob+='<div class="f"><button class="go q" onclick="shareLoc()">'+(GW!=null?'Не делиться геопозицией':'Делиться геопозицией')+'</button></div><div class="f"><button class="big2 go" style="background:var(--blue);color:#12202e" onclick="goHome()">Вернулся</button></div>';
  }else{
   ob+=PL.length?'<p class="mut">Куда пойдёшь (нажимай по порядку)</p><div class="chips">'+PL.map(function(p){var i=TR.indexOf(p.id);return '<button class="chip'+(i>=0?' on':'')+'" style="--c:#b4e0cc" onclick="tgp(\''+p.id+'\')">'+(i>=0?(i+1)+'. ':'')+esc(p.name)+'</button>'}).join('')+'</div>':'<p class="mut">Добавь места ниже, и маршрут посчитается сам.</p>';
