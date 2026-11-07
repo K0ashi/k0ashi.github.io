@@ -222,7 +222,7 @@ function mountMap(){
  if(MV)MAP.setView(MV.c,MV.z);else if(pts.length>1)MAP.fitBounds(pts,{padding:[30,30],maxZoom:16});else MAP.setView(pts[0]||[50,15],pts.length?15:4);
  MAP.on('moveend',function(){MV={c:MAP.getCenter(),z:MAP.getZoom()}});if(tab==='panel')MAP.on('click',mapTap)}
 function panel(){
- var h='<h1>Панель</h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
+ var h='<h1>Панель <small>· версия: поправка будильника</small></h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
  h+='<h2>Чем занят</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+(x.id===S.act?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';
  h+='<div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>';
  h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
