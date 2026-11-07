@@ -94,7 +94,7 @@ function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioConte
 function incoming(k){
  if(S.act==='sleep'){ring=true;render();(function l(){if(ring){beep();if(navigator.vibrate)navigator.vibrate([400,150,400]);setTimeout(l,1200)}})();return}
  if(P.sound)beep();if(P.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
- if(P.popup)showN(k.name+' пнул тебя');
+ if(P.popup){if(window.Android&&Android.notify)Android.notify(k.name+' пнул тебя');else showN(k.name+' пнул тебя')}
 }
 async function pushSub(role){
  if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('Браузер не поддерживает уведомления');
