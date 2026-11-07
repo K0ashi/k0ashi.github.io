@@ -218,7 +218,7 @@ function panel(){
  h+='<div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>';
  h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
  h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
- if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
+ if(S.act==='sleep'&&window.Android&&Android.alarmDebug)h+='<p class="mut">'+esc(Android.alarmDebug())+'</p>';if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
  h+='<h2>Выход из дома</h2>';
  var ids=S.trip||[],st=S.stop||0,ob='';
  if(S.outside){
