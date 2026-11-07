@@ -74,7 +74,16 @@ function cur(){return A.find(function(a){return a.id===S.act})||{name:'—',icon
 function hm(t){var d=new Date(t);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 function left(t){var m=Math.max(0,Math.round((new Date(t)-Date.now())/60000));return Math.floor(m/60)+' ч '+m%60+' мин'}
 function etaT(t){return new Date(t)>Date.now()?'примерно через '+left(t):'уже скоро, задерживается'}
-function syncAlarm(){if(!owner||!window.Android||!Android.getNextAlarm||S.act!=='sleep')return;var al=Android.getNextAlarm(),iso=al>0?new Date(al).toISOString():null;if((iso||'')!==(S.wake_at?new Date(S.wake_at).toISOString():''))setS({wake_at:iso})}
+// Часы Xiaomi отдают время будильника раньше: на 60 мин, если до него больше часа, и на 15 мин, если от 15 до 60 мин. Здесь это исправляется.
+function alarmT(){
+ var R=Android.getNextAlarm(),now=Date.now(),m=6e4,st=null,T=0;
+ try{st=JSON.parse(ls('alm')||'null')}catch(e){}
+ if(R>0){
+  if(st&&st.T>now-m&&(R===st.T||R===st.T-15*m||R===st.T-60*m))T=st.T;
+  else{var d=R-now;T=d>45*m?R+60*m:d>15*m?R+15*m:R}
+ }else if(st&&st.T>now&&st.T-now<=15*m)T=st.T;
+ ls('alm',JSON.stringify(T?{T:T}:null));return T}
+function syncAlarm(){if(!owner||!window.Android||!Android.getNextAlarm)return;var al=alarmT();if(S.act!=='sleep')return;var iso=al>0?new Date(al).toISOString():null;if((iso||'')!==(S.wake_at?new Date(S.wake_at).toISOString():''))setS({wake_at:iso})}
 function tsFrom(v){if(!v)return null;var d=new Date(),p=v.split(':');d.setHours(+p[0],+p[1],0,0);if(d<new Date())d.setDate(d.getDate()+1);return d.toISOString()}
 function toast(t){toastT=t;render();setTimeout(function(){toastT='';render()},2200)}
 function u8(b){var p='='.repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,function(c){return c.charCodeAt(0)})}
@@ -85,7 +94,7 @@ async function load(){
  if(owner){var k=await sb.from('kicks').select().order('created_at',{ascending:false}).limit(8);kicks=k.data||[]}
  render();
 }
-async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=Android.getNextAlarm();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
+async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=alarmT();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
 async function kick(){
  if(Date.now()-lastKick<8000)return toast('Подожди пару секунд');lastKick=Date.now();
  var r=await sb.from('kicks').insert({name:me||'Аноним'});toast(r.error?'Не отправилось':'Пинок отправлен')}
@@ -265,7 +274,7 @@ function render(){
 (async function(){
  render();
  var s=await sb.auth.getSession();owner=!!(s.data&&s.data.session);if(owner)tab='panel';if(window.Android&&Android.isTracking())GW='app';
- await load();if(owner)checkPush();
+ await load();if(owner)checkPush();syncAlarm();
  if(owner&&location.hash==='#out'){await setS({outside:true,dest:S.dest||null,act:'walk'});history.replaceState(null,'','./')}
  if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
  sb.channel('all').on('postgres_changes',{event:'*',schema:'public'},function(p){
