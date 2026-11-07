@@ -110,7 +110,7 @@ async function bell(){
 async function ownerPush(){try{await pushSub('owner');toast('Уведомления включены');checkPush()}catch(e){toast(e.message||'Не получилось')}}
 async function login(){
  var r=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
- if(r.error)return toast('Неверная почта или пароль');owner=true;await load();tab='panel';render()}
+ if(r.error)return toast('Неверная почта или пароль');if(window.Android)Android.saveLogin($('em').value,$('pw').value);owner=true;await load();tab='panel';render()}
 async function logout(){await pushOff();await sb.auth.signOut();owner=false;tab='today';render()}
 
 function hero(a,big,l1,l2,tag){return '<div class="hero" style="--ac:'+a.color+'"><span class="ico">'+a.icon+'</span><p>'+l1+'</p><div class="big">'+big+'</div>'+(l2?'<p>'+l2+'</p>':'')+(tag?'<span class="tag">'+tag+'</span>':'')+'</div>'}
@@ -196,6 +196,7 @@ async function addPl(){var n=$('pn').value.trim();if(!n||!PT)return toast('По�
  if(r.error)return toast('Ошибка: '+r.error.message);PT=null;PF={};load()}
 async function delPl(id){if(!confirm('Удалить место?'))return;await sb.from('places').delete().eq('id',id);TR=TR.filter(function(x){return x!==id});load()}
 function shareLoc(){
+ if(window.Android){if(GW!=null){Android.stopTracking();GW=null}else{Android.startTracking();GW='app'}return render()}
  if(GW!=null){navigator.geolocation.clearWatch(GW);GW=null;return render()}
  if(!navigator.geolocation)return toast('Нет геолокации');var last=0;
  GW=navigator.geolocation.watchPosition(function(p){if(Date.now()-last<20000)return;last=Date.now();S.lat=p.coords.latitude;S.lng=p.coords.longitude;sb.from('status').update({lat:S.lat,lng:S.lng,loc_at:new Date().toISOString()}).eq('id',1)},function(){GW=null;toast('Нет доступа к геопозиции')},{enableHighAccuracy:true});render()}
@@ -240,7 +241,7 @@ async function goOut(){
  var ids=TR.slice(),base={outside:true,act:S.act==='dog'?'dog':'walk',lat:null,lng:null};
  if(ids.length){var m=calc(ids,0);return setS(Object.assign(base,{trip:ids,stop:0,eta_at:new Date(Date.now()+m*6e4).toISOString(),dest:ids.map(function(i){return pl(i).name}).join(' → '),eta_min:null}))}
  var mm=+($('eta')||{}).value;await setS(Object.assign(base,{trip:[],stop:0,dest:(($('ds')||{}).value||'').trim()||null,eta_at:mm?new Date(Date.now()+mm*6e4).toISOString():null}))}
-async function goHome(){if(GW!=null){navigator.geolocation.clearWatch(GW);GW=null}TR=[];await setS({outside:false,dest:null,eta_min:null,eta_at:null,trip:[],stop:0,lat:null,lng:null,loc_at:null,act:'scroll'})}
+async function goHome(){if(GW!=null){if(window.Android)Android.stopTracking();else navigator.geolocation.clearWatch(GW);GW=null}TR=[];await setS({outside:false,dest:null,eta_min:null,eta_at:null,trip:[],stop:0,lat:null,lng:null,loc_at:null,act:'scroll'})}
 async function nextStop(){var ids=S.trip||[],i=(S.stop||0)+1;await setS({stop:i,eta_at:new Date(Date.now()+calc(ids,i)*6e4).toISOString()})}
 function settings(){
  var h='<h1>Настройки</h1><p class="mut">Твоё имя (Сеня увидит его, когда ты его пнёшь)</p><div class="f"><input id="nm" value="'+esc(me)+'" placeholder="Имя"><button class="go" onclick="saveName()">Сохранить</button></div>';
@@ -261,7 +262,7 @@ function render(){
 }
 (async function(){
  render();
- var s=await sb.auth.getSession();owner=!!(s.data&&s.data.session);if(owner)tab='panel';
+ var s=await sb.auth.getSession();owner=!!(s.data&&s.data.session);if(owner)tab='panel';if(window.Android&&Android.isTracking())GW='app';
  await load();if(owner)checkPush();
  if(owner&&location.hash==='#out'){await setS({outside:true,dest:S.dest||null,act:'walk'});history.replaceState(null,'','./')}
  if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
