@@ -61,13 +61,13 @@ nav button.on{background:var(--card2);color:var(--tx);font-weight:700;box-shadow
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 // ====== ВСТАВЬ СВОИ ЗНАЧЕНИЯ ======
-var CFG={url:'https://mzadbfmruytnvjmdojbw.supabase.co',key:'sb_publishable_itBiHEoLck2P5EUO_EMDkQ_1mPADk3G',vapid:'BIKzzVxUiBJpbe_sgrIGEFtW-62fZ9jklhDCePn5QtxAOPRygoZeHpTFRRDVW0YtjDx5EBh-pKi6ESB6xJsw0qk'};
+var CFG={friendEmail:'friends@senya.example',url:'https://mzadbfmruytnvjmdojbw.supabase.co',key:'sb_publishable_itBiHEoLck2P5EUO_EMDkQ_1mPADk3G',vapid:'BIKzzVxUiBJpbe_sgrIGEFtW-62fZ9jklhDCePn5QtxAOPRygoZeHpTFRRDVW0YtjDx5EBh-pKi6ESB6xJsw0qk'};
 // ==================================
 var sb=supabase.createClient(CFG.url,CFG.key);
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){}}
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-var mo=0,F={rule:'once',dows:[]},PS='',PL=[],TR=[],SEL={},PF={},MAP=null,MV=null,PT=null,pm=null,GW=null,S={},A=[],D=[],kicks=[],me=ls('name')||'',owner=false,tab='today',view='main',day=null,toastT='',ring=false,lastKick=0,actx;
+var mo=0,F={rule:'once',dows:[]},PS='',authed=false,started=false,gOwner=false,KP=false,PL=[],TR=[],SEL={},PF={},MAP=null,MV=null,PT=null,pm=null,GW=null,S={},A=[],D=[],kicks=[],me=ls('name')||'',owner=false,tab='today',view='main',day=null,toastT='',ring=false,lastKick=0,actx;
 var P=JSON.parse(ls('prefs')||'{"sound":true,"popup":true,"vib":true}');
 var KC={s:['#f5cfa8','смена'],d:['#a9c8f0','врач'],o:['#b4e0cc','выходной'],x:['#f2b8c6','другое']};
 function cur(){return A.find(function(a){return a.id===S.act})||{name:'—',icon:'❔',color:'#cdbdf0'}}
@@ -95,9 +95,9 @@ async function load(){
  render();
 }
 async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=alarmT();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
-async function kick(){
+async function kick(i){
  if(Date.now()-lastKick<8000)return toast('Подожди пару секунд');lastKick=Date.now();
- var r=await sb.from('kicks').insert({name:me||'Аноним'});toast(r.error?'Не отправилось':'Пинок отправлен')}
+ var t=KT[i];KP=false;var r=await sb.from('kicks').insert({name:me||'Аноним',emoji:t[0],msg:t[2]});toast(r.error?'Не отправилось':'Отправлено')}
 function showN(t){try{if(!window.Notification||Notification.permission!=='granted')return;navigator.serviceWorker.getRegistration().then(function(r){if(r)r.showNotification(t,{tag:'kick',renotify:true,vibrate:[200,100,200],icon:'icon.svg'})})}catch(e){}}
 async function checkPush(){try{var r=await navigator.serviceWorker.getRegistration();var q=r&&await r.pushManager.getSubscription();PS=Notification.permission==='granted'?(q?'Пуш включён на этом устройстве':'Разрешение есть, но пуш не подписан: нажми кнопку ниже'):Notification.permission==='denied'?'Уведомления заблокированы в настройках браузера':'Пуш не включён'}catch(e){PS='Пуш не поддерживается'}render()}
 function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();var t=actx.currentTime;[0,.25].forEach(function(d){var o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(.25,t+d);g.gain.exponentialRampToValueAtTime(.001,t+d+.2);o.connect(g);g.connect(actx.destination);o.start(t+d);o.stop(t+d+.22)})}catch(e){}}
@@ -105,7 +105,7 @@ function incoming(k){
  if(window.Android&&Android.watching&&Android.watching())return;
  if(S.act==='sleep'){ring=true;render();(function l(){if(ring){beep();if(navigator.vibrate)navigator.vibrate([400,150,400]);setTimeout(l,1200)}})();return}
  if(P.sound)beep();if(P.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
- if(P.popup){if(window.Android&&Android.notify)Android.notify(k.name+' пнул тебя');else showN(k.name+' пнул тебя')}
+ if(P.popup){if(window.Android&&Android.notify)Android.notify(kt(k));else showN(kt(k))}
 }
 async function pushSub(role){
  if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('Браузер не поддерживает уведомления');
@@ -121,17 +121,17 @@ async function bell(){
 async function ownerPush(){try{await pushSub('owner');toast('Уведомления включены');checkPush()}catch(e){toast(e.message||'Не получилось')}}
 async function login(){
  var r=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});
- if(r.error)return toast('Неверная почта или пароль');if(window.Android)Android.saveLogin($('em').value,$('pw').value);owner=true;await load();tab='panel';render()}
-async function logout(){if(window.Android)Android.logout();await pushOff();await sb.auth.signOut();owner=false;tab='today';render()}
+ if(r.error)return toast('Неверная почта или пароль');if(window.Android)Android.saveLogin($('em').value,$('pw').value);authed=true;var o=await sb.rpc('is_owner');owner=o.data===true;if(owner)tab='panel';await start();await load();render()}
+async function logout(){if(window.Android)Android.logout();await pushOff();await sb.auth.signOut();location.reload()}
 
 function hero(a,big,l1,l2,tag){return '<div class="hero" style="--ac:'+a.color+'"><span class="ico">'+a.icon+'</span><p>'+l1+'</p><div class="big">'+big+'</div>'+(l2?'<p>'+l2+'</p>':'')+(tag?'<span class="tag">'+tag+'</span>':'')+'</div>'}
 function today(){
- var a=cur(),mode=S.busy?'Очень занят, лучше не отвлекать':'Может отвлечься',k='<div class="row"><button class="btn kick" onclick="kick()">Пнуть</button></div>';
+ var a=cur(),mode=S.busy?'Очень занят, лучше не отвлекать':'Может отвлечься',k='<div class="row"><button class="btn kick" onclick="KP=!KP;render()">Пнуть</button></div>';
  if(view==='route'){var P2=(S.trip||[]).map(pl).filter(Boolean),st=S.stop||0,nm=P2[st]?P2[st].name:(P2.length?'домой':''),nx=P2[st+1]?P2[st+1].name:(P2[st]?'домой':'');
  return '<button class="back" onclick="view=\'main\';render()">‹ Назад</button><div id="map" class="map"></div><p class="eta">'+(P2.length?'Сейчас: <b>'+esc(nm)+'</b>'+(nx?' · дальше: '+esc(nx):''):'Куда: <b>'+esc(S.dest||'гуляет')+'</b>')+'<br>Через сколько будет дома: <b>'+(S.eta_at?etaT(S.eta_at):'неизвестно')+'</b>'+(S.loc_at?'<br><small>Позиция обновлена в '+hm(S.loc_at)+'</small>':'')+'</p>'}
- if(S.outside)return '<h1>Сейчас</h1>'+hero({icon:'🚶',color:'#b4e0cc'},'На улице','Сейчас '+(S.act==='dog'?'гуляет с собакой':'гуляет')+(S.dest?': '+esc(S.dest):''),S.eta_at?'Домой '+etaT(S.eta_at):'',mode)+'<div class="row"><button class="btn" onclick="view=\'route\';MV=null;render()">Открыть маршрут</button><button class="btn kick" onclick="kick()">Пнуть</button></div><button class="bell'+(ls('bell')==='1'?' on':'')+'" onclick="bell()">'+(ls('bell')==='1'?'🔔 Сообщим о возвращении':'🔕 Сообщить, когда вернётся')+'</button>';
+ if(S.outside)return '<h1>Сейчас</h1>'+hero({icon:'🚶',color:'#b4e0cc'},'На улице','Сейчас '+(S.act==='dog'?'гуляет с собакой':'гуляет')+(S.dest?': '+esc(S.dest):''),S.eta_at?'Домой '+etaT(S.eta_at):'',mode)+'<div class="row"><button class="btn" onclick="view=\'route\';MV=null;render()">Открыть маршрут</button><button class="btn kick" onclick="KP=!KP;render()">Пнуть</button></div><button class="bell'+(ls('bell')==='1'?' on':'')+'" onclick="bell()">'+(ls('bell')==='1'?'🔔 Сообщим о возвращении':'🔕 Сообщить, когда вернётся')+'</button>';
  if(S.act==='sleep')return '<h1>Сейчас</h1>'+hero(a,S.busy?'Лучше не отвлекать':'Может отвлечься','Сейчас спит',S.wake_at?'Осталось спать: '+left(S.wake_at)+' (будильник в '+hm(S.wake_at)+')':'Точного времени сна нет','')+k;
- return '<h1>Сейчас</h1>'+hero(a,esc(a.name),'Сейчас делает это',S.until_at?'до '+hm(S.until_at):'',mode)+k;
+ return '<h1>Сейчас</h1>'+hero(a,esc(a.name),(S.act==='play'&&S.game?'Сейчас играет в «'+esc(S.game)+'»':'Сейчас делает это'),S.until_at?'до '+hm(S.until_at):'',mode)+k;
 }
 var MN=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],MG=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 function dn(s){var p=s.split('-');return Date.UTC(+p[0],+p[1]-1,+p[2])/864e5}
@@ -187,6 +187,28 @@ async function addEv(){
  F={rule:'once',dows:[]};await load()}
 async function delEv(id,rep){if(rep==='1'&&!confirm('Удалить всё повторение целиком?'))return;await sb.from('schedule').delete().eq('id',id);load()}
 async function addAct(){var n=$('an').value.trim();if(!n)return;var c=['#a9c8f0','#f2b8c6','#b4e0cc','#f5cfa8','#cdbdf0','#f1e3a1'][A.length%6];await sb.from('activities').insert({id:'c'+Date.now(),name:n,icon:$('ai').value.trim()||'⭐',color:c,sort:A.length+1});load()}
+var KT=[['👋','Пнуть','пнул тебя'],['📞','Позвони','просит позвонить'],['🎮','Го играть','зовёт играть'],['🚶','Го гулять','зовёт гулять'],['💬','Напиши','просит написать']];
+var QR=['Сейчас не могу','Позже отвечу','Иду!','Позвоню','Лучше напиши'];
+function kt(k){return (k.emoji?k.emoji+' ':'')+k.name+' '+(k.msg||'пнул тебя')}
+function pickerHtml(){return '<div class="chips" style="margin-top:14px">'+KT.map(function(t,i){return '<button class="chip" onclick="kick('+i+')">'+t[0]+' '+t[1]+'</button>'}).join('')+'</div>'}
+function replyHtml(){var r=(ls('reply')||'').split('|'),t=+r[1];return r[0]&&Date.now()-t<432e5?'<p class="eta">Сеня ответил: <b>'+esc(r[0])+'</b> · '+hm(t)+'</p>':''}
+async function reply(i,j){var k=kicks[i];if(!k)return;var r=await sb.from('replies').insert({to_name:k.name,text:QR[j]});toast(r.error?'Не отправилось':'Ответ отправлен')}
+function gateHtml(){return gOwner?'<h1>Вход для Сени</h1><div class="f"><input id="em" type="email" placeholder="Почта"></div><div class="f"><input id="pw" type="password" placeholder="Пароль"><button class="go" onclick="login()">Войти</button></div><div class="f"><button class="go q" onclick="gOwner=false;render()">Назад</button></div>':'<h1>Закрытый доступ</h1><p class="mut">Введи пароль, который тебе дал Сеня</p><div class="f"><input id="gp" type="password" placeholder="Пароль"><button class="go" onclick="gateLogin()">Войти</button></div><div class="f"><button class="go q" onclick="gOwner=true;render()">Вход для Сени</button></div>'}
+async function gateLogin(){var r=await sb.auth.signInWithPassword({email:CFG.friendEmail,password:$('gp').value});if(r.error)return toast('Неверный пароль');authed=true;await start();render()}
+async function start(){
+ if(started)return;started=true;
+ var o=await sb.rpc('is_owner');owner=o.data===true;
+ if(owner)tab='panel';if(window.Android&&Android.isTracking())GW='app';
+ await load();if(owner)checkPush();syncAlarm();
+ if(owner&&location.hash==='#out'){await setS({outside:true,dest:S.dest||null,act:'walk'});history.replaceState(null,'','./')}
+ if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
+ sb.channel('all').on('postgres_changes',{event:'*',schema:'public'},function(p){
+  if(p.table==='kicks'&&p.eventType==='INSERT'&&owner)incoming(p.new);
+  if(p.table==='replies'&&p.eventType==='INSERT'&&!owner&&p.new.to_name===me){ls('reply',p.new.text+'|'+Date.now());beep();toast('Сеня: '+p.new.text)}
+  load()}).subscribe();
+ setInterval(function(){load();syncAlarm()},60000);
+ document.addEventListener('click',function(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}},{once:true});
+ render()}
 function pl(id){return PL.find(function(p){return p.id===id})}
 function dist(a,b){var R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dg=(b.lng-a.lng)*r,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dg/2)*Math.sin(dg/2);return 2*R*Math.asin(Math.sqrt(x))}
 function leg(a,b){var H={lat:S.home_lat,lng:S.home_lng},pa=a==='H'?H:a,pb=b==='H'?H:b;
@@ -226,7 +248,7 @@ function panel(){
  h+='<h2>Чем занят</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+(x.id===S.act?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';
  h+='<div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>';
  h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
- h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
+ h+='<button class="tg'+(S.auto_game?' on':'')+'" style="margin-top:12px" onclick="setS({auto_game:!S.auto_game})">Подтягивать игры из Steam<span>'+(S.auto_game?'вкл':'выкл')+'</span></button>';h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
  if(S.act==='sleep'&&window.Android&&Android.alarmDebug)h+='<p class="mut">'+esc(Android.alarmDebug())+'</p>';if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
  h+='<h2>Выход из дома</h2>';
  var ids=S.trip||[],st=S.stop||0,ob='';
@@ -243,7 +265,7 @@ function panel(){
  h+=PL.map(function(p){return '<div class="tg"><span>'+esc(p.name)+' <small class="mut">· там '+(p.stay_min||0)+' мин'+(p.home_min!=null?' · от дома '+p.home_min:'')+'</small></span><button class="go q" onclick="delPl(\''+p.id+'\')">×</button></div>'}).join('');
  h+='<h2>Расписание</h2>';
  h+=D.length?'<div class="f"><button class="go q" onclick="selAll()">Выбрать всё</button><button class="go" style="background:var(--pink);color:#2a1b20" onclick="delSel()">Удалить выбранные</button></div><div class="f"><button class="go q" onclick="delPast()">Удалить прошедшие</button></div><div style="margin-top:10px">'+D.slice().sort(function(a,b){return a.day<b.day?-1:1}).map(function(e){var k=KC[e.kind]||KC.x;return '<label class="tg"><span><i class="dot" style="background:'+k[0]+'"></i>'+e.day.slice(8)+'.'+e.day.slice(5,7)+' '+esc(e.at||'')+' '+esc(e.title)+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span><input type="checkbox" '+(SEL[e.id]?'checked ':'')+'onchange="tgs(\''+e.id+'\')"></label>'}).join('')+'</div>':'<p class="mut">Пусто</p>';
- h+='<h2>Пинки</h2>'+(kicks.length?'<ul class="kicks">'+kicks.map(function(k){return '<li><span>'+esc(k.name)+'</span><span class="mut">'+hm(k.created_at)+'</span></li>'}).join('')+'</ul>':'<p class="mut">Пока никто не пинал.</p>');
+ h+='<h2>Пинки</h2>'+(kicks.length?'<ul class="kicks">'+kicks.map(function(k,i){return '<li style="flex-direction:column;gap:8px"><div style="display:flex;justify-content:space-between"><span>'+esc(kt(k))+'</span><span class="mut">'+hm(k.created_at)+'</span></div><div class="chips">'+QR.map(function(q,j){return '<button class="chip" onclick="reply('+i+','+j+')">'+esc(q)+'</button>'}).join('')+'</div></li>'}).join('')+'</ul>':'<p class="mut">Пока никто не пинал.</p>');
  [['sound','Звук'],['popup','Всплывашка'],['vib','Вибрация']].forEach(function(t){h+='<button class="tg'+(P[t[0]]?' on':'')+'" onclick="P.'+t[0]+'=!P.'+t[0]+';ls(\'prefs\',JSON.stringify(P));render()">'+t[1]+'<span>'+(P[t[0]]?'вкл':'выкл')+'</span></button>'});
  h+='<p class="mut">'+esc(PS)+'</p><div class="f"><button class="go" onclick="ownerPush()">Включить пуш на это устройство</button></div><p class="mut">Ссылки для NFC-меток: …/#out (ушёл) и …/#home (вернулся).</p><div class="f"><button class="go q" onclick="logout()">Выйти</button></div>';
  return h;
@@ -263,23 +285,18 @@ function saveName(){var v=$('nm').value.trim();if(!v)return;me=v;ls('name',v);to
 function render(){
  var ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&!toastT)return;
  var h;
- if(!owner&&!me&&tab!=='set')h='<h1>Привет!</h1><p class="mut">Как тебя зовут? Сеня увидит это, когда ты его пнёшь.</p><div class="f"><input id="nm" placeholder="Твоё имя"><button class="go" onclick="saveName()">Продолжить</button></div>';
+ if(!authed)h=gateHtml();else if(!owner&&!me&&tab!=='set')h='<h1>Привет!</h1><p class="mut">Как тебя зовут? Сеня увидит это, когда ты его пнёшь.</p><div class="f"><input id="nm" placeholder="Твоё имя"><button class="go" onclick="saveName()">Продолжить</button></div>';
  else h=tab==='today'?today():tab==='cal'?calendar():tab==='panel'?panel():settings();
- $('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
+ if(authed&&tab==='today'&&view==='main'){h+=(KP?pickerHtml():'')+replyHtml()}$('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
  mountMap();var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель']]:[]).concat([['set','⚙ Настройки']]);
- $('nav').innerHTML=T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;MV=null;PT=null;render()">'+t[1]+'</button>'}).join('');
+ $('nav').innerHTML=!authed?'':T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;MV=null;PT=null;render()">'+t[1]+'</button>'}).join('');
  var o=document.querySelector('.toast');if(o)o.remove();
  if(toastT)document.body.insertAdjacentHTML('beforeend','<div class="toast">'+esc(toastT)+'</div>');
 }
 (async function(){
  render();
- var s=await sb.auth.getSession();owner=!!(s.data&&s.data.session);if(owner)tab='panel';if(window.Android&&Android.isTracking())GW='app';
- await load();if(owner)checkPush();syncAlarm();
- if(owner&&location.hash==='#out'){await setS({outside:true,dest:S.dest||null,act:'walk'});history.replaceState(null,'','./')}
- if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
- sb.channel('all').on('postgres_changes',{event:'*',schema:'public'},function(p){
-  if(p.table==='kicks'&&p.eventType==='INSERT'&&owner)incoming(p.new);load()}).subscribe();
- setInterval(function(){load();syncAlarm()},60000);document.addEventListener('click',function(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume()}catch(e){}},{once:true});
+ var s=await sb.auth.getSession();authed=!!(s.data&&s.data.session);
+ if(authed)await start();else render();
  if(navigator.serviceWorker)navigator.serviceWorker.register('sw.js').catch(function(){});
 })();
 </script>
