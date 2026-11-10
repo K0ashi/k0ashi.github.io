@@ -54,9 +54,11 @@ nav button.on{background:var(--card2);color:var(--tx);font-weight:700;box-shadow
 .alarm button{padding:16px 32px;border-radius:18px;background:var(--pink);color:#2a1b20;font-weight:700;font-size:18px}
 .map{height:340px;border-radius:26px;overflow:hidden;border:1px solid var(--ln);background:#22212b;isolation:isolate}.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.85)}input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;padding:0}.eta{margin:14px 4px 0;color:var(--mut);font-size:15px}.eta b{color:var(--tx)}
 .msg{max-width:82%;padding:10px 14px;border-radius:18px;margin:6px 0;font-size:15px;background:var(--card2);word-wrap:break-word}.msg.me{margin-left:auto;background:var(--lav);color:#1b1a22}.msg small{opacity:.6;font-size:11px}nav button{font-size:13px}
+.lang{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:14px;z-index:4;padding:5px 11px;border-radius:99px;background:var(--card2);border:1px solid var(--ln);font-size:12px;font-weight:700}.trrow{background:var(--card);border-radius:14px;padding:10px 12px;margin-bottom:8px}
 </style>
 </head>
 <body>
+<button id="lang" class="lang" onclick="setLang()">RU</button>
 <div id="app"><main id="main"></main><nav id="nav"></nav></div>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -94,6 +96,7 @@ async function load(){
  var was=S.outside;S=r[0].data||S;A=r[1].data||A;D=r[2].data||D;PL=r[3].data||PL;if(was===true&&S.outside===false&&!owner&&ls('bell')==='1'){beep();toast('Сеня вернулся домой')}
  if(owner){var k=await sb.from('kicks').select().order('created_at',{ascending:false}).limit(8);kicks=k.data||[]}
  var cq=sb.from('chat').select().order('created_at',{ascending:false}).limit(300);if(!owner&&me)cq=cq.eq('name',me);var c=await cq;if(c.data)CH=c.data.slice().reverse();
+ var tr=await sb.from('i18n').select();if(tr.data){TRX={};tr.data.forEach(function(x){TRX[x.ru]={en:x.en,de:x.de}})}
  render();
 }
 async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=alarmT();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
@@ -219,6 +222,51 @@ function chatView(){
  h+=msgs.length?msgs.map(function(m){return '<div class="msg'+(!!m.from_owner===owner?' me':'')+'">'+esc(m.text)+'<br><small>'+hm(m.created_at)+'</small></div>'}).join(''):'<p class="mut">Сообщений пока нет.</p>';
  h+='<div class="chips" style="margin-top:12px">'+qrAll().map(function(q,j){return '<button class="chip" onclick="sendMsg(qrAll()['+j+'])">'+esc(q)+'</button>'}).join('')+'</div>';
  return h+'<div class="f"><input id="cm" placeholder="Сообщение"><button class="go" onclick="sendMsg()">Отправить</button></div>'}
+var LANG=ls('lang')||'ru',TRX={},RX=null,RXK='',M={};
+var DICT=[
+['Сегодня','Today','Heute'],['Календарь','Calendar','Kalender'],['Чат с Сеней','Chat with Senya','Chat mit Senya'],['Чат','Chat','Chat'],['Настройки','Settings','Einstellungen'],['Панель','Panel','Panel'],
+['Закрытый доступ','Private access','Geschlossener Zugang'],['Введи пароль, который тебе дал Сеня','Enter the password Senya gave you','Gib das Passwort ein, das dir Senya gegeben hat'],['Пароль','Password','Passwort'],['Войти','Log in','Anmelden'],['Вход для Сени','Senya login','Login für Senya'],['Назад','Back','Zurück'],['Неверный пароль','Wrong password','Falsches Passwort'],['Почта','Email','E-Mail'],
+['Привет!','Hi!','Hallo!'],['Как тебя зовут? Сеня увидит это, когда ты его пнёшь.','What is your name? Senya will see it when you nudge him.','Wie heißt du? Senya sieht das, wenn du ihn anstupst.'],['Твоё имя (Сеня увидит его, когда ты его пнёшь)','Your name (Senya sees it when you nudge him)','Dein Name (Senya sieht ihn, wenn du ihn anstupst)'],['Твоё имя','Your name','Dein Name'],['Имя','Name','Name'],['Продолжить','Continue','Weiter'],['Сохранить','Save','Speichern'],['Сохранено','Saved','Gespeichert'],['Сеня','Senya','Senya'],
+['Сейчас делает это','Right now doing','Macht gerade'],['Сейчас спит','Sleeping right now','Schläft gerade'],['Сейчас гуляет с собакой','Walking the dog right now','Geht gerade mit dem Hund spazieren'],['Сейчас гуляет','Out for a walk right now','Ist gerade spazieren'],['Сейчас играет в','Now playing','Spielt gerade'],['Сейчас:','Now:','Jetzt:'],['Сейчас','Now','Jetzt'],
+['Очень занят, лучше не отвлекать','Very busy, better not disturb','Sehr beschäftigt, besser nicht stören'],['Лучше не отвлекать','Better not disturb','Besser nicht stören'],['Может отвлечься','Can be distracted','Kann sich ablenken lassen'],['Осталось спать:','Sleep left:','Noch schlafen:'],['Точного времени сна нет','No exact sleep time','Keine genaue Schlafzeit'],['будильник в','alarm at','Wecker um'],
+['Пнуть','Nudge','Anstupsen'],['Параллельно:','At the same time:','Gleichzeitig:'],['Хочу заняться:','Want to do next:','Möchte als Nächstes:'],['На улице','Outside','Draußen'],
+['Домой','Home','Heim'],['домой','home','nach Hause'],['примерно через','in about','in etwa'],['уже скоро, задерживается','soon, running late','bald, verspätet sich'],['Открыть маршрут','Open route','Route öffnen'],
+['Сообщить, когда вернётся','Notify me when he is back','Benachrichtige mich, wenn er zurück ist'],['Сообщим о возвращении','We will notify you when he is back','Wir benachrichtigen dich bei der Rückkehr'],['Сообщим, когда Сеня вернётся','We will let you know when Senya is back','Wir sagen dir Bescheid, wenn Senya zurück ist'],['Уведомление выключено','Notification off','Benachrichtigung aus'],['Сеня вернулся домой','Senya is back home','Senya ist wieder zu Hause'],
+['дальше:','next:','danach:'],['Через сколько будет дома:','Time until he is home:','Zeit bis er zu Hause ist:'],['неизвестно','unknown','unbekannt'],['Позиция обновлена в','Position updated at','Position aktualisiert um'],['Куда:','Where:','Wohin:'],['гуляет','out walking','unterwegs'],
+['Позвони','Call me','Ruf an'],['Го играть','Let’s play','Lass spielen'],['Го гулять','Let’s walk','Lass spazieren'],['Напиши','Text me','Schreib mir'],['Подожди пару секунд','Wait a few seconds','Warte ein paar Sekunden'],['Отправлено','Sent','Gesendet'],['Не отправилось','Not sent','Nicht gesendet'],
+['Пн','Mon','Mo'],['Вт','Tue','Di'],['Ср','Wed','Mi'],['Чт','Thu','Do'],['Пт','Fri','Fr'],['Сб','Sat','Sa'],['Вс','Sun','So'],
+['Январь','January','Januar'],['Февраль','February','Februar'],['Март','March','März'],['Апрель','April','April'],['Май','May','Mai'],['Июнь','June','Juni'],['Июль','July','Juli'],['Август','August','August'],['Сентябрь','September','September'],['Октябрь','October','Oktober'],['Ноябрь','November','November'],['Декабрь','December','Dezember'],
+['января','January','Januar'],['февраля','February','Februar'],['марта','March','März'],['апреля','April','April'],['мая','May','Mai'],['июня','June','Juni'],['июля','July','Juli'],['августа','August','August'],['сентября','September','September'],['октября','October','Oktober'],['ноября','November','November'],['декабря','December','Dezember'],
+['смена','shift','Schicht'],['врач','doctor','Arzt'],['выходной','day off','frei'],['Выходной','Day off','Frei'],['другое','other','andere'],['Ничего нет','Nothing planned','Nichts geplant'],['с вчера','from yesterday','von gestern'],['каждый день','every day','jeden Tag'],['каждые','every','alle'],['дн.','days','Tage'],['по дням недели','on weekdays','an bestimmten Wochentagen'],
+['Сообщений пока нет.','No messages yet.','Noch keine Nachrichten.'],['Сообщение','Message','Nachricht'],['Отправить','Send','Senden'],['Ты свободен?','Are you free?','Hast du Zeit?'],['Позвони, когда сможешь','Call me when you can','Ruf an, wenn du kannst'],['Го играть?','Wanna play?','Lust zu spielen?'],['Спасибо!','Thanks!','Danke!'],
+['Быстрые ответы','Quick replies','Schnellantworten'],['Свои фразы появляются рядом с основными в чате.','Your own phrases appear next to the default ones in chat.','Deine eigenen Sätze erscheinen neben den Standardsätzen im Chat.'],['Новая быстрая фраза','New quick phrase','Neuer Schnellsatz'],['Добавить','Add','Hinzufügen'],['Нажми ещё раз, чтобы подтвердить','Tap again to confirm','Zum Bestätigen erneut tippen'],
+['Работа','Work','Arbeit'],['Сон','Sleep','Schlaf'],['Гуляю с собакой','Walking the dog','Gehe mit dem Hund spazieren'],['Гуляю','Out for a walk','Gehe spazieren'],['Играю','Playing games','Spiele'],['Смотрю стрим','Watching a stream','Schaue einen Stream'],['Смотрю ютуб','Watching YouTube','Schaue YouTube'],['Смотрю фильм/сериал','Watching a movie/series','Schaue Film/Serie'],['Думскроллю','Doomscrolling','Doomscrolle'],['Нет','None','Keine']];
+var BUILT={};DICT.forEach(function(d){BUILT[d[0]]=[d[1],d[2]]});
+var RULES=[[/(\d+)\s*ч(?![\p{L}])/gu,'$1 h','$1 Std.'],[/(\d+)\s*мин(?![\p{L}])/gu,'$1 min','$1 Min.'],[/(^|[\s(])до (\d{1,2}:\d{2})/g,'$1until $2','$1bis $2']];
+function buildM(){
+ var k=LANG+':'+JSON.stringify(TRX);if(k===RXK)return;RXK=k;M={};var i=LANG==='en'?1:2;
+ DICT.forEach(function(d){M[d[0]]=d[i]});
+ Object.keys(TRX).forEach(function(r){var v=TRX[r][LANG];if(v)M[r]=v});
+ var ks=Object.keys(M).sort(function(a,b){return b.length-a.length}).map(function(x){return x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')});
+ RX=new RegExp('(?<![\\p{L}\\d])(?:'+ks.join('|')+')(?![\\p{L}\\d])','gu')}
+function tx(v){var o=v.replace(RX,function(m){return M[m]||m}),j=LANG==='en'?1:2;RULES.forEach(function(r){o=o.replace(r[0],r[j])});return o}
+function i18n(root){
+ if(LANG==='ru'||!root)return;buildM();
+ var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),n,l=[];while(n=w.nextNode())l.push(n);
+ l.forEach(function(n){var v=n.nodeValue;if(/[\u0400-\u04FF]/.test(v)){var o=tx(v);if(o!==v)n.nodeValue=o}});
+ root.querySelectorAll('[placeholder]').forEach(function(e){e.placeholder=tx(e.getAttribute('placeholder'))})}
+function setLang(){var o=['ru','en','de'];LANG=o[(o.indexOf(LANG)+1)%3];ls('lang',LANG);render(true)}
+function tgw(id){var w=(S.wants||[]).slice(),i=w.indexOf(id);if(i<0)w.push(id);else w.splice(i,1);setS({wants:w})}
+function wantsHtml(){
+ var l=(S.wants||[]).filter(function(id){return id!==S.act&&id!==S.act2}).map(function(id){return A.find(function(x){return x.id===id})}).filter(Boolean);
+ if(!l.length||S.act==='sleep'||S.outside)return '';
+ return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 10px">Хочу заняться:</p><div class="chips">'+l.map(function(a){return '<span class="chip on" style="--c:'+a.color+'">'+a.icon+' '+esc(a.name)+'</span>'}).join('')+'</div></div>'}
+function trList(){var o={};A.forEach(function(a){o[a.name]=1});D.forEach(function(e){o[e.title]=1});PL.forEach(function(p){o[p.name]=1});return Object.keys(o)}
+function trSettings(){
+ return '<h2>Переводы твоих текстов</h2><p class="mut">Впиши перевод названий занятий, мест и событий. Пустое поле оставит русский.</p>'+trList().map(function(k,i){var t=TRX[k]||{},b=BUILT[k]||[];
+  return '<div class="trrow"><div>'+esc(k)+'</div><div class="f"><input id="te'+i+'" placeholder="English" value="'+esc(t.en||b[0]||'')+'"><input id="td'+i+'" placeholder="Deutsch" value="'+esc(t.de||b[1]||'')+'"><button class="go" onclick="trSave('+i+')">OK</button></div></div>'}).join('')}
+async function trSave(i){var k=trList()[i],en=$('te'+i).value.trim(),de=$('td'+i).value.trim();
+ var r=await sb.from('i18n').upsert({ru:k,en:en||null,de:de||null});toast(r.error?'Не сохранилось: '+r.error.message:'Сохранено');load()}
 var KT=[['👋','Пнуть','пнул тебя'],['📞','Позвони','просит позвонить'],['🎮','Го играть','зовёт играть'],['🚶','Го гулять','зовёт гулять'],['💬','Напиши','просит написать']];
 var QR=['Сейчас не могу','Позже отвечу','Иду!','Позвоню','Лучше напиши'];
 function kt(k){return (k.emoji?k.emoji+' ':'')+k.name+' '+(k.msg||'пнул тебя')}
@@ -282,7 +330,7 @@ function panel(){
  var h='<h1>Панель <small>· версия: поправка будильника</small></h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
  h+='<h2>Чем занят</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+(x.id===S.act?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';
  h+='<div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>';
- h+='<h2>Параллельно</h2><div class="chips"><button class="chip'+(!S.act2?' on':'')+'" style="--c:#a29fb2" onclick="setS({act2:null})">Нет</button>'+A.map(function(x){return '<button class="chip'+(x.id===S.act2?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act2:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
+ h+='<h2>Параллельно</h2><div class="chips"><button class="chip'+(!S.act2?' on':'')+'" style="--c:#a29fb2" onclick="setS({act2:null})">Нет</button>'+A.map(function(x){return '<button class="chip'+(x.id===S.act2?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act2:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';h+='<h2>Хочу заняться</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+((S.wants||[]).indexOf(x.id)>=0?' on':'')+'" style="--c:'+x.color+'" onclick="tgw(\''+x.id+'\')">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
  h+='<button class="tg'+(S.auto_game?' on':'')+'" style="margin-top:12px" onclick="setS({auto_game:!S.auto_game})">Подтягивать игры из Steam<span>'+(S.auto_game?'вкл':'выкл')+'</span></button>';h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
  if(S.act==='sleep'&&window.Android&&Android.alarmDebug)h+='<p class="mut">'+esc(Android.alarmDebug())+'</p>';if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
  h+='<h2>Выход из дома</h2>';
@@ -314,7 +362,7 @@ async function nextStop(){var ids=S.trip||[],i=(S.stop||0)+1;await setS({stop:i,
 function settings(){
  var h='<h1>Настройки</h1><p class="mut">Твоё имя (Сеня увидит его, когда ты его пнёшь)</p><div class="f"><input id="nm" value="'+esc(me)+'" placeholder="Имя"><button class="go" onclick="saveName()">Сохранить</button></div>';
  if(!owner)h+='<h2>Вход для Сени</h2><div class="f"><input id="em" type="email" placeholder="Почта"></div><div class="f"><input id="pw" type="password" placeholder="Пароль"><button class="go" onclick="login()">Войти</button></div>';
- h+=qrSettings();return h;
+ h+=qrSettings();if(owner)h+=trSettings();return h;
 }
 function saveName(){var v=$('nm').value.trim();if(!v)return;me=v;ls('name',v);toast('Сохранено');render()}
 function render(force){
@@ -322,12 +370,13 @@ function render(force){
  var h;
  if(!authed)h=gateHtml();else if(!owner&&!me&&tab!=='set')h='<h1>Привет!</h1><p class="mut">Как тебя зовут? Сеня увидит это, когда ты его пнёшь.</p><div class="f"><input id="nm" placeholder="Твоё имя"><button class="go" onclick="saveName()">Продолжить</button></div>';
  else h=tab==='today'?today():tab==='cal'?calendar():tab==='panel'?panel():tab==='chat'?chatView():settings();
- if(authed&&tab==='today'&&view==='main'){h+=(KP?pickerHtml():'')+replyHtml()}$('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
+ if(authed&&tab==='today'&&view==='main'){h+=wantsHtml()+(KP?pickerHtml():'')+replyHtml()}$('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
  mountMap();var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель']]:[]).concat([['chat','Чат'+(unread()?' ('+unread()+')':'')],['set',owner?'⚙':'⚙ Настройки']]);
  $('nav').innerHTML=!authed?'':T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;MV=null;PT=null;render()">'+t[1]+'</button>'}).join('');
  var o=document.querySelector('.toast');if(o)o.remove();
  if(toastT)document.body.insertAdjacentHTML('beforeend','<div class="toast">'+esc(toastT)+'</div>');
  if(tab==='chat'&&authed){var mm=$('main');mm.scrollTop=mm.scrollHeight;if(CF){CF=false;var ci=$('cm');if(ci)ci.focus()}ls('seen',String(Date.now()))}
+ i18n($('main'));i18n($('nav'));var to=document.querySelector('.toast');if(to)i18n(to);$('lang').textContent=LANG.toUpperCase();
 }
 (async function(){
  render();
