@@ -262,11 +262,21 @@ function wantsHtml(){
  if(!l.length||S.outside)return '';
  return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 10px">Хочу заняться:</p><div class="chips">'+l.map(function(a){return '<span class="chip on" style="--c:'+a.color+'">'+a.icon+' '+esc(a.name)+'</span>'}).join('')+'</div></div>'}
 function trList(){var o={};A.forEach(function(a){o[a.name]=1});D.forEach(function(e){o[e.title]=1});PL.forEach(function(p){o[p.name]=1});return Object.keys(o)}
+var TD={};
+function trDraft(i,f,v){var k=trList()[i];if(k===undefined)return;(TD[k]=TD[k]||{})[f]=v}
 function trSettings(){
- return '<h2>Переводы твоих текстов</h2><p class="mut">Впиши перевод названий занятий, мест и событий. Пустое поле оставит русский.</p>'+trList().map(function(k,i){var t=TRX[k]||{},b=BUILT[k]||[];
-  return '<div class="trrow"><div>'+esc(k)+'</div><div class="f"><input id="te'+i+'" placeholder="English" value="'+esc(t.en||b[0]||'')+'"><input id="td'+i+'" placeholder="Deutsch" value="'+esc(t.de||b[1]||'')+'"><button class="go" onclick="trSave('+i+')">OK</button></div></div>'}).join('')}
-async function trSave(i){var k=trList()[i],en=$('te'+i).value.trim(),de=$('td'+i).value.trim();
- var r=await sb.from('i18n').upsert({ru:k,en:en||null,de:de||null});toast(r.error?'Не сохранилось: '+r.error.message:'Сохранено');load()}
+ return '<h2>Переводы твоих текстов</h2><p class="mut">Впиши перевод названий занятий, мест и событий, потом нажми «Сохранить все переводы». Пустое поле оставит русский.</p>'+trList().map(function(k,i){
+  var t=TRX[k]||{},b=BUILT[k]||[],d=TD[k]||{};
+  var en=d.en!==undefined?d.en:(t.en||b[0]||''),de=d.de!==undefined?d.de:(t.de||b[1]||'');
+  return '<div class="trrow"><div>'+esc(k)+'</div><div class="f"><input id="te'+i+'" placeholder="English" value="'+esc(en)+'" oninput="trDraft('+i+',\'en\',this.value)"><input id="td'+i+'" placeholder="Deutsch" value="'+esc(de)+'" oninput="trDraft('+i+',\'de\',this.value)"></div></div>'}).join('')+'<div class="f"><button class="go" onclick="trSaveAll()">Сохранить все переводы</button></div>'}
+async function trSaveAll(){
+ var rows=[];
+ trList().forEach(function(k){var d=TD[k];if(!d)return;var t=TRX[k]||{},b=BUILT[k]||[];
+  var en=(d.en!==undefined?d.en:(t.en||b[0]||'')).trim(),de=(d.de!==undefined?d.de:(t.de||b[1]||'')).trim();
+  rows.push({ru:k,en:en||null,de:de||null})});
+ if(!rows.length)return toast('Нечего сохранять');
+ var r=await sb.from('i18n').upsert(rows);if(r.error)return toast('Не сохранилось: '+r.error.message);
+ TD={};toast('Сохранено: '+rows.length);load()}
 var AE=null,AEC='',COLS=['#a9c8f0','#f2b8c6','#b4e0cc','#f5cfa8','#cdbdf0','#f1e3a1'];
 function actsManage(){
  return '<h2>Управление занятиями</h2>'+A.map(function(x){
