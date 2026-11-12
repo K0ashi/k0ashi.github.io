@@ -55,6 +55,7 @@ nav button.on{background:var(--card2);color:var(--tx);font-weight:700;box-shadow
 .map{height:340px;border-radius:26px;overflow:hidden;border:1px solid var(--ln);background:#22212b;isolation:isolate}.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.85)}input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;padding:0}.eta{margin:14px 4px 0;color:var(--mut);font-size:15px}.eta b{color:var(--tx)}
 .msg{max-width:82%;padding:10px 14px;border-radius:18px;margin:6px 0;font-size:15px;background:var(--card2);word-wrap:break-word}.msg.me{margin-left:auto;background:var(--lav);color:#1b1a22}.msg small{opacity:.6;font-size:11px}nav button{font-size:13px}
 .lang{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:14px;z-index:4;padding:5px 11px;border-radius:99px;background:var(--card2);border:1px solid var(--ln);font-size:12px;font-weight:700}.trrow{background:var(--card);border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.rd{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5a6a;margin-left:5px;vertical-align:middle}.fold{cursor:pointer;user-select:none}
 </style>
 </head>
 <body>
@@ -97,6 +98,7 @@ async function load(){
  if(owner){var k=await sb.from('kicks').select().order('created_at',{ascending:false}).limit(8);kicks=k.data||[]}
  var cq=sb.from('chat').select().order('created_at',{ascending:false}).limit(300);if(!owner&&me)cq=cq.eq('name',me);var c=await cq;if(c.data)CH=c.data.slice().reverse();
  var tr=await sb.from('i18n').select();if(tr.data){TRX={};tr.data.forEach(function(x){TRX[x.ru]={en:x.en,de:x.de}})}
+ var jn=await sb.from('wants_join').select().order('created_at');if(jn.data)JN=jn.data;
  render();
 }
 async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=alarmT();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
@@ -108,6 +110,7 @@ async function checkPush(){try{var r=await navigator.serviceWorker.getRegistrati
 function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();var t=actx.currentTime;[0,.25].forEach(function(d){var o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;g.gain.setValueAtTime(.25,t+d);g.gain.exponentialRampToValueAtTime(.001,t+d+.2);o.connect(g);g.connect(actx.destination);o.start(t+d);o.stop(t+d+.22)})}catch(e){}}
 function incoming(k){
  if(window.Android&&Android.watching&&Android.watching())return;
+ if(S.act==='sleep'&&S.busy)return;
  if(S.act==='sleep'){ring=true;render();(function l(){if(ring){beep();if(navigator.vibrate)navigator.vibrate([400,150,400]);setTimeout(l,1200)}})();return}
  if(P.sound)beep();if(P.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
  if(P.popup){if(window.Android&&Android.notify)Android.notify(kt(k));else showN(kt(k))}
@@ -142,6 +145,7 @@ var MN=['Январь','Февраль','Март','Апрель','Май','Ию
 function dn(s){var p=s.split('-');return Date.UTC(+p[0],+p[1]-1,+p[2])/864e5}
 function on(e,ds){
  if(!e.rule||e.rule==='once')return e.day===ds;
+ if((e.skip||[]).indexOf(ds)>=0)return false;
  if(ds<e.day||(e.until_day&&ds>e.until_day))return false;
  var df=dn(ds)-dn(e.day);
  if(e.rule==='daily')return true;
@@ -165,7 +169,7 @@ function calendar(){
 function modal(){
  var ev=evOn(day),p=day.split('-');
  var h='<div class="modal" onclick="day=null;render()"><div class="sheet" onclick="event.stopPropagation()"><h2>'+(+p[2])+' '+MG[+p[1]-1]+'</h2>';
- h+=ev.length?ev.map(function(e){var k=KC[e.kind]||KC.x;return '<p><span><i class="dot" style="background:'+k[0]+'"></i>'+esc(e.cont?'до '+e.at_end+' ':(e.at?e.at+(e.at_end?'–'+e.at_end:'')+' ':''))+esc(e.title)+(e.cont?' <small class="mut">(с вчера)</small>':'')+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span>'+(owner?'<button class="go q" onclick="delEv(\''+e.id+'\',\''+(e.rule&&e.rule!=='once'?1:0)+'\')">×</button>':'')+'</p>'}).join(''):'<p class="mut">Ничего нет</p>';
+ h+=ev.length?ev.map(function(e){var k=KC[e.kind]||KC.x;return '<p><span><i class="dot" style="background:'+k[0]+'"></i>'+esc(e.cont?'до '+e.at_end+' ':(e.at?e.at+(e.at_end?'–'+e.at_end:'')+' ':''))+esc(e.title)+(e.cont?' <small class="mut">(с вчера)</small>':'')+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span>'+(owner?(e.rule&&e.rule!=='once'?'<span><button class="go q" onclick="skipDay(\''+e.id+'\','+(e.cont?1:0)+')">Пропустить день</button> <button class="go q" onclick="delEv(\''+e.id+'\',\'1\')">× серия</button></span>':'<button class="go q" onclick="delEv(\''+e.id+'\',\'0\')">×</button>'):'')+'</p>'}).join(''):'<p class="mut">Ничего нет</p>';
  return h+(owner?form():'')+'</div></div>';
 }
 function rf(){var g=function(i){var x=$(i);return x?x.value:''};if($('ett')){F.t=g('ett');F.a=g('et');F.b=g('ee');F.k=g('ek')||F.k;F.rule=g('er')||F.rule;F.n=g('en');F.m=g('em2');F.u=g('eu')}}
@@ -240,7 +244,7 @@ var DICT=[
 ['смена','shift','Schicht'],['врач','doctor','Arzt'],['выходной','day off','frei'],['Выходной','Day off','Frei'],['другое','other','andere'],['Ничего нет','Nothing planned','Nichts geplant'],['с вчера','from yesterday','von gestern'],['каждый день','every day','jeden Tag'],['каждые','every','alle'],['дн.','days','Tage'],['по дням недели','on weekdays','an bestimmten Wochentagen'],
 ['Сообщений пока нет.','No messages yet.','Noch keine Nachrichten.'],['Сообщение','Message','Nachricht'],['Отправить','Send','Senden'],['Ты свободен?','Are you free?','Hast du Zeit?'],['Позвони, когда сможешь','Call me when you can','Ruf an, wenn du kannst'],['Го играть?','Wanna play?','Lust zu spielen?'],['Спасибо!','Thanks!','Danke!'],
 ['Быстрые ответы','Quick replies','Schnellantworten'],['Свои фразы появляются рядом с основными в чате.','Your own phrases appear next to the default ones in chat.','Deine eigenen Sätze erscheinen neben den Standardsätzen im Chat.'],['Новая быстрая фраза','New quick phrase','Neuer Schnellsatz'],['Добавить','Add','Hinzufügen'],['Нажми ещё раз, чтобы подтвердить','Tap again to confirm','Zum Bestätigen erneut tippen'],
-['Работа','Work','Arbeit'],['Сон','Sleep','Schlaf'],['Гуляю с собакой','Walking the dog','Gehe mit dem Hund spazieren'],['Гуляю','Out for a walk','Gehe spazieren'],['Играю','Playing games','Spiele'],['Смотрю стрим','Watching a stream','Schaue einen Stream'],['Смотрю ютуб','Watching YouTube','Schaue YouTube'],['Смотрю фильм/сериал','Watching a movie/series','Schaue Film/Serie'],['Думскроллю','Doomscrolling','Doomscrolle'],['Нет','None','Keine']];
+['Работа','Work','Arbeit'],['Сон','Sleep','Schlaf'],['Гуляю с собакой','Walking the dog','Gehe mit dem Hund spazieren'],['Гуляю','Out for a walk','Gehe spazieren'],['Играю','Playing games','Spiele'],['Смотрю стрим','Watching a stream','Schaue einen Stream'],['Смотрю ютуб','Watching YouTube','Schaue YouTube'],['Смотрю фильм/сериал','Watching a movie/series','Schaue Film/Serie'],['Думскроллю','Doomscrolling','Doomscrolle'],['Нажми, если хочешь присоединиться','Tap if you want to join','Tippe, wenn du mitmachen willst'],['Сеня увидит, что ты хочешь присоединиться','Senya will see that you want to join','Senya sieht, dass du mitmachen willst'],['Отменено','Cancelled','Abgebrochen'],['Пропустить день','Skip this day','Tag überspringen'],['Нет','None','Keine']];
 var BUILT={};DICT.forEach(function(d){BUILT[d[0]]=[d[1],d[2]]});
 var RULES=[[/(\d+)\s*ч(?![\p{L}])/gu,'$1 h','$1 Std.'],[/(\d+)\s*мин(?![\p{L}])/gu,'$1 min','$1 Min.'],[/(^|[\s(])до (\d{1,2}:\d{2})/g,'$1until $2','$1bis $2']];
 function buildM(){
@@ -256,11 +260,11 @@ function i18n(root){
  l.forEach(function(n){var v=n.nodeValue;if(/[\u0400-\u04FF]/.test(v)){var o=tx(v);if(o!==v)n.nodeValue=o}});
  root.querySelectorAll('[placeholder]').forEach(function(e){e.placeholder=tx(e.getAttribute('placeholder'))})}
 function setLang(){var o=['ru','en','de'];LANG=o[(o.indexOf(LANG)+1)%3];ls('lang',LANG);render(true)}
-function tgw(id){var w=(S.wants||[]).slice(),i=w.indexOf(id);if(i<0)w.push(id);else w.splice(i,1);setS({wants:w})}
+function tgw(id){var w=(S.wants||[]).slice(),i=w.indexOf(id);if(i<0)w.push(id);else{w.splice(i,1);sb.from('wants_join').delete().eq('activity_id',id).then(function(){load()})}setS({wants:w})}
 function wantsHtml(){
  var l=(S.wants||[]).filter(function(id){return id!==S.act&&id!==S.act2}).map(function(id){return A.find(function(x){return x.id===id})}).filter(Boolean);
  if(!l.length||S.outside)return '';
- return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 10px">Хочу заняться:</p><div class="chips">'+l.map(function(a){return '<span class="chip on" style="--c:'+a.color+'">'+a.icon+' '+esc(a.name)+'</span>'}).join('')+'</div></div>'}
+ return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 10px">Хочу заняться:</p><div class="chips">'+l.map(function(a){var n=JN.filter(function(j){return j.activity_id===a.id}).length,mine=JN.some(function(j){return j.activity_id===a.id&&j.name===me});return '<button class="chip on" style="--c:'+a.color+'" onclick="joinW(\''+a.id+'\')">'+a.icon+' '+esc(a.name)+(n?' · '+n:'')+(mine?' ✓':'')+'</button>'}).join('')+'</div><p class="mut" style="margin:10px 0 0">Нажми, если хочешь присоединиться</p></div>'}
 function trList(){var o={};A.forEach(function(a){o[a.name]=1});D.forEach(function(e){o[e.title]=1});PL.forEach(function(p){o[p.name]=1});return Object.keys(o)}
 var TD={};
 function trDraft(i,f,v){var k=trList()[i];if(k===undefined)return;(TD[k]=TD[k]||{})[f]=v}
@@ -277,9 +281,23 @@ async function trSaveAll(){
  if(!rows.length)return toast('Нечего сохранять');
  var r=await sb.from('i18n').upsert(rows);if(r.error)return toast('Не сохранилось: '+r.error.message);
  TD={};toast('Сохранено: '+rows.length);load()}
+var JN=[],OPEN={},RD='<i class="rd"></i>';
+function tf(k){OPEN[k]=!OPEN[k];MV=null;render(true)}
+function fold(k,t,b){return '<h2 class="fold" onclick="tf(\''+k+'\')">'+(OPEN[k]?'▾ ':'▸ ')+t+'</h2>'+(OPEN[k]?b:'')}
+function unreadK(){var s=+ls('seenk')||0;return kicks.filter(function(k){return new Date(k.created_at)>s}).length+JN.filter(function(j){return new Date(j.created_at)>s}).length}
+async function joinW(id){
+ if(owner||!me)return;
+ var mine=JN.some(function(j){return j.activity_id===id&&j.name===me});
+ var r=mine?await sb.from('wants_join').delete().eq('activity_id',id).eq('name',me):await sb.from('wants_join').insert({activity_id:id,name:me});
+ if(r.error)return toast('Не отправилось');toast(mine?'Отменено':'Сеня увидит, что ты хочешь присоединиться');load()}
+async function skipDay(id,cont){
+ var e=D.find(function(x){return x.id===id});if(!e)return;
+ var d=cont?new Date(dn(day)*864e5-864e5).toISOString().slice(0,10):day;
+ var r=await sb.from('schedule').update({skip:(e.skip||[]).concat([d])}).eq('id',id);
+ if(r.error)return toast('Ошибка: '+r.error.message);load()}
 var AE=null,AEC='',COLS=['#a9c8f0','#f2b8c6','#b4e0cc','#f5cfa8','#cdbdf0','#f1e3a1'];
 function actsManage(){
- return '<h2>Управление занятиями</h2>'+A.map(function(x){
+ return A.map(function(x){
   if(AE===x.id)return '<div class="trrow"><div class="f"><input id="ae_i" value="'+esc(x.icon)+'" style="flex:0 0 56px;text-align:center"><input id="ae_n" value="'+esc(x.name)+'"></div><div class="chips" style="margin-top:8px">'+COLS.map(function(c){return '<button class="chip" style="background:'+c+';width:32px;height:32px;padding:0;border:2px solid '+(AEC===c?'#fff':'transparent')+'" onclick="AEC=\''+c+'\';render(true)"></button>'}).join('')+'</div><div class="f"><button class="go" onclick="saveAct()">Сохранить</button><button class="go q" onclick="AE=null;render(true)">Отмена</button></div></div>';
   return '<div class="tg"><span><i class="dot" style="background:'+x.color+'"></i>'+esc(x.icon)+' '+esc(x.name)+'</span><span><button class="go q" onclick="editAct(\''+x.id+'\')">✎</button> <button class="go q" onclick="delAct(\''+x.id+'\')">×</button></span></div>'}).join('')}
 function editAct(id){var a=A.find(function(x){return x.id===id});if(!a)return;AE=id;AEC=a.color;render(true)}
@@ -311,6 +329,7 @@ async function start(){
  if(owner&&location.hash==='#home'){await goHome();history.replaceState(null,'','./')}
  sb.channel('all').on('postgres_changes',{event:'*',schema:'public'},function(p){
   if(p.table==='kicks'&&p.eventType==='INSERT'&&owner)incoming(p.new);
+  if(p.table==='wants_join'&&p.eventType==='INSERT'&&owner){var wa=A.find(function(x){return x.id===p.new.activity_id});chatIn({name:p.new.name,text:'хочет присоединиться: '+(wa?wa.icon+' '+wa.name:'')})}
   if(p.table==='chat'&&p.eventType==='INSERT'){var m=p.new;if(owner&&!m.from_owner)chatIn(m);if(!owner&&m.from_owner&&m.name===me){beep();toast('Сеня: '+m.text)}}
   load()}).subscribe();
  setInterval(function(){load();syncAlarm()},60000);
@@ -355,11 +374,18 @@ function mountMap(){
  MAP.on('moveend',function(){MV={c:MAP.getCenter(),z:MAP.getZoom()}});if(tab==='panel')MAP.on('click',mapTap)}
 function panel(){
  var h='<h1>Панель <small>· версия: поправка будильника</small></h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
- h+='<h2>Чем занят</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+(x.id===S.act?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';
- h+='<div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>';
- h+=actsManage();h+='<h2>Параллельно</h2><div class="chips"><button class="chip'+(!S.act2?' on':'')+'" style="--c:#a29fb2" onclick="setS({act2:null})">Нет</button>'+A.map(function(x){return '<button class="chip'+(x.id===S.act2?' on':'')+'" style="--c:'+x.color+'" onclick="setS({act2:\''+x.id+'\'})">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';h+='<h2>Хочу заняться</h2><div class="chips">'+A.map(function(x){return '<button class="chip'+((S.wants||[]).indexOf(x.id)>=0?' on':'')+'" style="--c:'+x.color+'" onclick="tgw(\''+x.id+'\')">'+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div>';h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
- h+='<button class="tg'+(S.auto_game?' on':'')+'" style="margin-top:12px" onclick="setS({auto_game:!S.auto_game})">Подтягивать игры из Steam<span>'+(S.auto_game?'вкл':'выкл')+'</span></button>';h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
- if(S.act==='sleep'&&window.Android&&Android.alarmDebug)h+='<p class="mut">'+esc(Android.alarmDebug())+'</p>';if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
+ var chip=function(x,on,fn){return '<button class="chip'+(on?' on':'')+'" style="--c:'+x.color+'" onclick="'+fn+'">'+x.icon+' '+esc(x.name)+'</button>'};
+ h+=fold('act','Чем занят','<div class="chips">'+A.map(function(x){return chip(x,x.id===S.act,'setS({act:\''+x.id+'\'})')}).join('')+'</div><div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>');
+ h+=fold('par','Параллельно','<div class="chips"><button class="chip'+(!S.act2?' on':'')+'" style="--c:#a29fb2" onclick="setS({act2:null})">Нет</button>'+A.map(function(x){return chip(x,x.id===S.act2,'setS({act2:\''+x.id+'\'})')}).join('')+'</div>');
+ var jl=JN.filter(function(j){return (S.wants||[]).indexOf(j.activity_id)>=0}).map(function(j){var a=A.find(function(x){return x.id===j.activity_id});return esc(j.name)+' → '+(a?a.icon:'')});
+ h+=fold('want','Хочу заняться','<div class="chips">'+A.map(function(x){return chip(x,(S.wants||[]).indexOf(x.id)>=0,'tgw(\''+x.id+'\')')}).join('')+'</div>'+(jl.length?'<p class="mut">Хотят присоединиться: '+jl.join(', ')+'</p>':''));
+ h+=fold('manage','Управление занятиями',actsManage());
+ h+='<h2>Отвлекать?</h2><div class="seg"><button class="'+(!S.busy?'on':'')+'" onclick="setS({busy:false})">Может отвлечься</button><button class="'+(S.busy?'on':'')+'" onclick="setS({busy:true})">Очень занят</button></div>';
+ h+='<button class="tg'+(S.auto_game?' on':'')+'" style="margin-top:12px" onclick="setS({auto_game:!S.auto_game})">Подтягивать игры из Steam<span>'+(S.auto_game?'вкл':'выкл')+'</span></button>';
+ h+='<button class="tg'+(S.auto_shift!==false?' on':'')+'" onclick="setS({auto_shift:S.auto_shift===false})">Автостатус смены (Работа, можно отвлечь)<span>'+(S.auto_shift!==false?'вкл':'выкл')+'</span></button>';
+ h+='<h2>До какого времени</h2><div class="f"><input id="un" type="time"><button class="go" onclick="setS({until_at:tsFrom($(\'un\').value)})">Сохранить</button><button class="go q" onclick="setS({until_at:null})">Сбросить</button></div>';
+ if(S.act==='sleep'&&window.Android&&Android.alarmDebug)h+='<p class="mut">'+esc(Android.alarmDebug())+'</p>';
+ if(S.act==='sleep')h+='<h2>Будильник</h2><div class="f"><input id="wk" type="time"><button class="go" onclick="setS({wake_at:tsFrom($(\'wk\').value)})">Сохранить</button><button class="go q" onclick="setS({wake_at:null})">Нет</button></div>';
  h+='<h2>Выход из дома</h2>';
  var ids=S.trip||[],st=S.stop||0,ob='';
  if(S.outside){
@@ -371,8 +397,7 @@ function panel(){
   ob+='<div class="f"><button class="big2 go" style="background:var(--peach);color:#2b2013" onclick="goOut()">Ушёл</button></div>';
  }
  h+=ob;
- h+='<h2>Места</h2><div id="map" class="map" style="height:260px"></div><p class="mut">Тапни по карте, чтобы поставить точку, потом заполни и добавь.</p><div class="f"><input id="pn" placeholder="Название (магазин)" value="'+esc(PF.n||'')+'"></div><div class="f"><input id="ps" type="number" placeholder="Сколько там (мин)" value="'+esc(PF.s||'')+'"><input id="ph" type="number" placeholder="От дома (мин)" value="'+esc(PF.h||'')+'"></div><div class="f"><button class="go" onclick="addPl()">'+(PE?'Сохранить':'Добавить место')+'</button>'+(PE?'<button class="go q" onclick="cancelPl()">Отмена</button>':'')+'<button class="go q" onclick="pm=\'home\';toast(\'Тапни по карте, где дом\')">Задать дом</button></div>';
- h+=PL.map(function(p){return '<div class="tg"><span>'+esc(p.name)+' <small class="mut">· там '+(p.stay_min||0)+' мин'+(p.home_min!=null?' · от дома '+p.home_min:'')+'</small></span><span><button class="go q" onclick="editPl(\''+p.id+'\')">✎</button> <button class="go q" onclick="delPl(\''+p.id+'\')">×</button></span></div>'}).join('');
+ h+=fold('plc','Места','<div id="map" class="map" style="height:260px"></div><p class="mut">Тапни по карте, чтобы поставить точку, потом заполни и добавь.</p><div class="f"><input id="pn" placeholder="Название (магазин)" value="'+esc(PF.n||'')+'"></div><div class="f"><input id="ps" type="number" placeholder="Сколько там (мин)" value="'+esc(PF.s||'')+'"><input id="ph" type="number" placeholder="От дома (мин)" value="'+esc(PF.h||'')+'"></div><div class="f"><button class="go" onclick="addPl()">'+(PE?'Сохранить':'Добавить место')+'</button>'+(PE?'<button class="go q" onclick="cancelPl()">Отмена</button>':'')+'<button class="go q" onclick="pm=\'home\';toast(\'Тапни по карте, где дом\')">Задать дом</button></div>'+PL.map(function(p){return '<div class="tg"><span>'+esc(p.name)+' <small class="mut">· там '+(p.stay_min||0)+' мин'+(p.home_min!=null?' · от дома '+p.home_min:'')+'</small></span><span><button class="go q" onclick="editPl(\''+p.id+'\')">✎</button> <button class="go q" onclick="delPl(\''+p.id+'\')">×</button></span></div>'}).join(''));
  h+='<h2>Расписание</h2>';
  h+=D.length?'<div class="f"><button class="go q" onclick="selAll()">Выбрать всё</button><button class="go" style="background:var(--pink);color:#2a1b20" onclick="delSel()">Удалить выбранные</button></div><div class="f"><button class="go q" onclick="delPast()">Удалить прошедшие</button></div><div style="margin-top:10px">'+D.slice().sort(function(a,b){return a.day<b.day?-1:1}).map(function(e){var k=KC[e.kind]||KC.x;return '<label class="tg"><span><i class="dot" style="background:'+k[0]+'"></i>'+e.day.slice(8)+'.'+e.day.slice(5,7)+' '+esc(e.at||'')+' '+esc(e.title)+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span><input type="checkbox" '+(SEL[e.id]?'checked ':'')+'onchange="tgs(\''+e.id+'\')"></label>'}).join('')+'</div>':'<p class="mut">Пусто</p>';
  h+='<h2>Пинки</h2>'+(kicks.length?'<ul class="kicks">'+kicks.map(function(k,i){return '<li style="flex-direction:column;gap:8px"><div style="display:flex;justify-content:space-between"><span>'+esc(kt(k))+'</span><span class="mut">'+hm(k.created_at)+'</span></div><div class="chips">'+qrAll().map(function(q,j){return '<button class="chip" onclick="reply('+i+','+j+')">'+esc(q)+'</button>'}).join('')+'</div></li>'}).join('')+'</ul>':'<p class="mut">Пока никто не пинал.</p>');
@@ -380,6 +405,7 @@ function panel(){
  h+='<p class="mut">'+esc(PS)+'</p><div class="f"><button class="go" onclick="ownerPush()">Включить пуш на это устройство</button></div><p class="mut">Ссылки для NFC-меток: …/#out (ушёл) и …/#home (вернулся).</p><div class="f"><button class="go q" onclick="logout()">Выйти</button></div>';
  return h;
 }
+
 async function goOut(){
  var ids=TR.slice(),base={outside:true,act:S.act==='dog'?'dog':'walk',lat:null,lng:null};
  if(ids.length){var m=calc(ids,0);return setS(Object.assign(base,{trip:ids,stop:0,eta_at:new Date(Date.now()+m*6e4).toISOString(),dest:ids.map(function(i){return pl(i).name}).join(' → '),eta_min:null}))}
@@ -398,11 +424,12 @@ function render(force){
  if(!authed)h=gateHtml();else if(!owner&&!me&&tab!=='set')h='<h1>Привет!</h1><p class="mut">Как тебя зовут? Сеня увидит это, когда ты его пнёшь.</p><div class="f"><input id="nm" placeholder="Твоё имя"><button class="go" onclick="saveName()">Продолжить</button></div>';
  else h=tab==='today'?today():tab==='cal'?calendar():tab==='panel'?panel():tab==='chat'?chatView():settings();
  if(authed&&tab==='today'&&view==='main'){h+=wantsHtml()+(KP?pickerHtml():'')+replyHtml()}$('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
- mountMap();var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель']]:[]).concat([['chat','Чат'+(unread()?' ('+unread()+')':'')],['set',owner?'⚙':'⚙ Настройки']]);
+ mountMap();var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель'+(tab!=='panel'&&unreadK()?RD:'')]]:[]).concat([['chat','Чат'+(tab!=='chat'&&unread()?RD:'')],['set',owner?'⚙':'⚙ Настройки']]);
  $('nav').innerHTML=!authed?'':T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;MV=null;PT=null;render()">'+t[1]+'</button>'}).join('');
  var o=document.querySelector('.toast');if(o)o.remove();
  if(toastT)document.body.insertAdjacentHTML('beforeend','<div class="toast">'+esc(toastT)+'</div>');
  if(tab==='chat'&&authed){var mm=$('main');mm.scrollTop=mm.scrollHeight;if(CF){CF=false;var ci=$('cm');if(ci)ci.focus()}ls('seen',String(Date.now()))}
+ if(tab==='panel'&&owner&&authed)ls('seenk',String(Date.now()));
  i18n($('main'));i18n($('nav'));var to=document.querySelector('.toast');if(to)i18n(to);$('lang').textContent=LANG.toUpperCase();
 }
 (async function(){
