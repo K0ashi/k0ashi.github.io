@@ -100,6 +100,7 @@ async function load(){
  var tr=await sb.from('i18n').select();if(tr.data){TRX={};tr.data.forEach(function(x){TRX[x.ru]={en:x.en,de:x.de}})}
  var jn=await sb.from('wants_join').select().order('created_at');if(jn.data)JN=jn.data;
  var pcs=await sb.from('pc_state').select().eq('id',1).maybeSingle();if(pcs.data)PCS=pcs.data;
+ var phs=await sb.from('phone_state').select().eq('id',1).maybeSingle();if(phs.data)PHS=phs.data;
  render();
 }
 async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=alarmT();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
@@ -282,14 +283,14 @@ async function trSaveAll(){
  if(!rows.length)return toast('Нечего сохранять');
  var r=await sb.from('i18n').upsert(rows);if(r.error)return toast('Не сохранилось: '+r.error.message);
  TD={};toast('Сохранено: '+rows.length);load()}
-var PCS={},AEI='',AEN='',AEA=false,JN=[],OPEN={},RD='<i class="rd"></i>';
+var PCS={},PHS={},AEI='',AEN='',AEA=false,JN=[],OPEN={},RD='<i class="rd"></i>';
 function tf(k){OPEN[k]=!OPEN[k];MV=null;render(true)}
 function fold(k,t,b){return '<h2 class="fold" onclick="tf(\''+k+'\')">'+(OPEN[k]?'▾ ':'▸ ')+t+'</h2>'+(OPEN[k]?b:'')}
 function unreadK(){var s=+ls('seenk')||0;return kicks.filter(function(k){return new Date(k.created_at)>s}).length+JN.filter(function(j){return new Date(j.created_at)>s}).length}
 function dur(t){var m=Math.max(0,Math.floor((Date.now()-new Date(t))/60000));return Math.floor(m/60)+' ч '+m%60+' мин'}
 function alarmAct(){var a=A.find(function(x){return x.id===S.act});return S.act==='sleep'||!!(a&&a.alarm)}
 function musicHtml(){
- var p=PCS||{};if(!p.track||!p.at||Date.now()-new Date(p.at)>18e4)return '';
+ var fr=function(x){return x&&x.track&&x.at&&Date.now()-new Date(x.at)<18e4},p=fr(PCS)?PCS:(fr(PHS)?PHS:null);if(!p)return '';
  if(['yt','stream','movie'].indexOf(S.act)>=0)return '';
  return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 8px">Слушает музыку:</p><div style="display:flex;align-items:center;gap:12px"><div data-nt="1" style="flex:1;min-width:0"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.track)+'</b>'+(p.artist?'<small class="mut">'+esc(p.artist)+'</small>':'')+'</div>'+(p.cover?'<img src="'+esc(p.cover)+'" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">':'<span style="font-size:40px">🎵</span>')+'</div></div>'}
 async function joinW(id){
@@ -409,6 +410,7 @@ function panel(){
  h+=D.length?'<div class="f"><button class="go q" onclick="selAll()">Выбрать всё</button><button class="go" style="background:var(--pink);color:#2a1b20" onclick="delSel()">Удалить выбранные</button></div><div class="f"><button class="go q" onclick="delPast()">Удалить прошедшие</button></div><div style="margin-top:10px">'+D.slice().sort(function(a,b){return a.day<b.day?-1:1}).map(function(e){var k=KC[e.kind]||KC.x;return '<label class="tg"><span><i class="dot" style="background:'+k[0]+'"></i>'+e.day.slice(8)+'.'+e.day.slice(5,7)+' '+esc(e.at||'')+' '+esc(e.title)+(rl(e)?' <small class="mut">('+rl(e)+')</small>':'')+'</span><input type="checkbox" '+(SEL[e.id]?'checked ':'')+'onchange="tgs(\''+e.id+'\')"></label>'}).join('')+'</div>':'<p class="mut">Пусто</p>';
  h+='<h2>Пинки</h2>'+(kicks.length?'<ul class="kicks">'+kicks.map(function(k,i){return '<li style="flex-direction:column;gap:8px"><div style="display:flex;justify-content:space-between"><span>'+esc(kt(k))+'</span><span class="mut">'+hm(k.created_at)+'</span></div><div class="chips">'+qrAll().map(function(q,j){return '<button class="chip" onclick="reply('+i+','+j+')">'+esc(q)+'</button>'}).join('')+'</div></li>'}).join('')+'</ul>':'<p class="mut">Пока никто не пинал.</p>');
  [['sound','Звук'],['popup','Всплывашка'],['vib','Вибрация']].forEach(function(t){h+='<button class="tg'+(P[t[0]]?' on':'')+'" onclick="P.'+t[0]+'=!P.'+t[0]+';ls(\'prefs\',JSON.stringify(P));render()">'+t[1]+'<span>'+(P[t[0]]?'вкл':'выкл')+'</span></button>'});
+ if(window.Android&&Android.musicAccess)h+='<button class="tg'+(Android.musicAccess()?' on':'')+'" onclick="Android.openMusicAccess()">Музыка с телефона<span>'+(Android.musicAccess()?'вкл':'нужен доступ')+'</span></button>';
  h+='<p class="mut">'+esc(PS)+'</p><div class="f"><button class="go" onclick="ownerPush()">Включить пуш на это устройство</button></div><p class="mut">Ссылки для NFC-меток: …/#out (ушёл) и …/#home (вернулся).</p><div class="f"><button class="go q" onclick="logout()">Выйти</button></div>';
  return h;
 }
