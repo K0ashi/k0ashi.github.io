@@ -293,7 +293,7 @@ function alarmAct(){var a=A.find(function(x){return x.id===S.act});return S.act=
 function musicHtml(){
  var fr=function(x){return x&&x.track&&x.at&&Date.now()-new Date(x.at)<18e4},p=fr(PCS)?PCS:(fr(PHS)?PHS:null);if(!p)return '';
  if(['yt','stream','movie'].indexOf(S.act)>=0)return '';
- return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 8px">Слушает музыку:</p><div style="display:flex;align-items:center;gap:12px"><div data-nt="1" style="flex:1;min-width:0"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.track)+'</b>'+(p.artist?'<small class="mut">'+esc(p.artist)+'</small>':'')+'</div>'+(p.cover?'<img src="'+esc(p.cover)+'" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">':'<span style="font-size:40px">🎵</span>')+'</div></div>'}
+ return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 8px">Слушает музыку:</p><div style="display:flex;align-items:center;gap:12px"><div data-nt="1" style="flex:1;min-width:0"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.track)+'</b>'+(p.artist?'<small class="mut">'+esc(String(p.artist).replace(/\s*-\s*Topic$/i,''))+'</small>':'')+'</div>'+(p.cover?'<img src="'+esc(p.cover)+'" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">':'<span style="font-size:40px">🎵</span>')+'</div></div>'}
 async function joinW(id){
  if(owner||!me)return;
  var mine=JN.some(function(j){return j.activity_id===id&&j.name===me});
