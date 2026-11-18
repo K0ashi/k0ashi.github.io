@@ -103,7 +103,7 @@ async function load(){
  var phs=await sb.from('phone_state').select().eq('id',1).maybeSingle();if(phs.data)PHS=phs.data;
  render();
 }
-async function setS(p){if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=alarmT();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
+async function setS(p){if(p.act&&!p.par&&(S.par||[]).indexOf(p.act)>=0)p.par=S.par.filter(function(x){return x!==p.act});if(p.act==='sleep'&&window.Android&&Android.getNextAlarm){var al=alarmT();p.wake_at=al>0?new Date(al).toISOString():null}Object.assign(S,p);render();var r=await sb.from('status').update(Object.assign({},p,{updated_at:new Date().toISOString()})).eq('id',1);if(r.error)toast('Не сохранилось: '+r.error.message)}
 async function kick(i){
  if(Date.now()-lastKick<8000)return toast('Подожди пару секунд');lastKick=Date.now();
  var t=KT[i];KP=false;var r=await sb.from('kicks').insert({name:me||'Аноним',emoji:t[0],msg:t[2]});toast(r.error?'Не отправилось':'Отправлено')}
@@ -200,7 +200,8 @@ async function delEv(id,rep){if(rep==='1'&&!sure('ev'+id))return;await sb.from('
 async function addAct(){var n=$('an').value.trim();if(!n)return;var c=['#a9c8f0','#f2b8c6','#b4e0cc','#f5cfa8','#cdbdf0','#f1e3a1'][A.length%6];await sb.from('activities').insert({id:'c'+Date.now(),name:n,icon:$('ai').value.trim()||'⭐',color:c,sort:A.length+1});load()}
 var QRF=['Привет!','Ты свободен?','Позвони, когда сможешь','Го играть?','Спасибо!'];
 function sure(k){if(SURE===k)return true;SURE=k;setTimeout(function(){if(SURE===k)SURE=''},4000);toast('Нажми ещё раз, чтобы подтвердить');return false}
-function par2(){var a2=A.find(function(x){return x.id===S.act2});return a2?'<br>Параллельно: '+a2.icon+' '+esc(a2.name):''}
+function par2(){var l=(S.par||[]).map(function(id){return A.find(function(x){return x.id===id})}).filter(Boolean);return l.length?'<br>Параллельно: '+l.map(function(a){return a.icon+' '+esc(a.name)}).join(', '):''}
+function tgPar(id){var p=(S.par||[]).slice(),i=p.indexOf(id);if(i<0)p.push(id);else p.splice(i,1);setS({par:p})}
 function unread(){var s=+ls('seen')||0;return CH.filter(function(m){return (owner?!m.from_owner:(m.from_owner&&m.name===me))&&new Date(m.created_at)>s}).length}
 function qrList(){var c=[];try{c=JSON.parse(ls(owner?'qro':'qrf')||'[]')}catch(e){}return{base:owner?QR:QRF,custom:c}}
 function qrSave(c){ls(owner?'qro':'qrf',JSON.stringify(c))}
@@ -264,7 +265,7 @@ function i18n(root){
 function setLang(){var o=['ru','en','de'];LANG=o[(o.indexOf(LANG)+1)%3];ls('lang',LANG);render(true)}
 function tgw(id){var w=(S.wants||[]).slice(),i=w.indexOf(id);if(i<0)w.push(id);else{w.splice(i,1);sb.from('wants_join').delete().eq('activity_id',id).then(function(){load()})}setS({wants:w})}
 function wantsHtml(){
- var l=(S.wants||[]).filter(function(id){return id!==S.act&&id!==S.act2}).map(function(id){return A.find(function(x){return x.id===id})}).filter(Boolean);
+ var l=(S.wants||[]).filter(function(id){return id!==S.act&&(S.par||[]).indexOf(id)<0}).map(function(id){return A.find(function(x){return x.id===id})}).filter(Boolean);
  if(!l.length||S.outside)return '';
  return '<div class="hero" style="margin-top:14px;padding:16px"><p style="max-width:100%;margin:0 0 10px">Хочу заняться:</p><div class="chips">'+l.map(function(a){var n=JN.filter(function(j){return j.activity_id===a.id}).length,mine=JN.some(function(j){return j.activity_id===a.id&&j.name===me});return '<button class="chip on" style="--c:'+a.color+'" onclick="joinW(\''+a.id+'\')">'+a.icon+' '+esc(a.name)+(n?' · '+n:'')+(mine?' ✓':'')+'</button>'}).join('')+'</div><p class="mut" style="margin:10px 0 0">Нажми, если хочешь присоединиться</p></div>'}
 function trList(){var o={};A.forEach(function(a){o[a.name]=1});D.forEach(function(e){o[e.title]=1});PL.forEach(function(p){o[p.name]=1});return Object.keys(o)}
@@ -317,7 +318,7 @@ async function delAct(id){
  var r=await sb.from('activities').delete().eq('id',id);if(r.error)return toast('Ошибка: '+r.error.message);
  var rest=A.filter(function(x){return x.id!==id}),p={};
  if(S.act===id)p.act=rest.length?rest[0].id:null;
- if(S.act2===id)p.act2=null;
+ if((S.par||[]).indexOf(id)>=0)p.par=S.par.filter(function(x){return x!==id});
  if((S.wants||[]).indexOf(id)>=0)p.wants=S.wants.filter(function(w){return w!==id});
  if(Object.keys(p).length)await setS(p);load()}
 var KT=[['👋','Пнуть','пнул тебя'],['📞','Позвони','просит позвонить'],['🎮','Го играть','зовёт играть'],['🚶','Го гулять','зовёт гулять'],['💬','Напиши','просит написать']];
@@ -384,7 +385,7 @@ function panel(){
  var h='<h1>Панель <small>· версия: поправка будильника</small></h1><div class="hero" style="--ac:'+cur().color+'"><div class="big" style="font-size:24px;margin:0">'+cur().icon+' '+esc(cur().name)+'</div><p style="max-width:100%">'+(S.outside?'На улице'+(S.dest?': '+esc(S.dest):''):'Дома')+' · '+(S.busy?'Очень занят':'Может отвлечься')+(S.until_at?' · до '+hm(S.until_at):'')+'</p></div>';
  var chip=function(x,on,fn){return '<button class="chip'+(on?' on':'')+'" style="--c:'+x.color+'" onclick="'+fn+'">'+x.icon+' '+esc(x.name)+'</button>'};
  h+=fold('act','Чем занят','<div class="chips">'+A.map(function(x){return chip(x,x.id===S.act,'setS({act:\''+x.id+'\'})')}).join('')+'</div><div class="f"><input id="ai" placeholder="😀" style="flex:0 0 56px;text-align:center"><input id="an" placeholder="Новое занятие"><button class="go" onclick="addAct()">Добавить</button></div>');
- h+=fold('par','Параллельно','<div class="chips"><button class="chip'+(!S.act2?' on':'')+'" style="--c:#a29fb2" onclick="setS({act2:null})">Нет</button>'+A.map(function(x){return chip(x,x.id===S.act2,'setS({act2:\''+x.id+'\'})')}).join('')+'</div>');
+ h+=fold('par','Параллельно','<div class="chips"><button class="chip'+((S.par||[]).length?'':' on')+'" style="--c:#a29fb2" onclick="setS({par:[]})">Нет</button>'+A.filter(function(x){return x.id!==S.act}).map(function(x){var i=(S.par||[]).indexOf(x.id);return '<button class="chip'+(i>=0?' on':'')+'" style="--c:'+x.color+'" onclick="tgPar(\''+x.id+'\')">'+(i>=0?(i+1)+'. ':'')+x.icon+' '+esc(x.name)+'</button>'}).join('')+'</div><p class="mut">Можно выбрать несколько. Цифра показывает порядок: когда автостатус закончится, первый станет основным.</p>');
  var jl=JN.filter(function(j){return (S.wants||[]).indexOf(j.activity_id)>=0}).map(function(j){var a=A.find(function(x){return x.id===j.activity_id});return esc(j.name)+' → '+(a?a.icon:'')});
  h+=fold('want','Хочу заняться','<div class="chips">'+A.map(function(x){return chip(x,(S.wants||[]).indexOf(x.id)>=0,'tgw(\''+x.id+'\')')}).join('')+'</div>'+(jl.length?'<p class="mut">Хотят присоединиться: '+jl.join(', ')+'</p>':''));
  h+=fold('manage','Управление занятиями',actsManage());
@@ -432,7 +433,7 @@ function render(force){
  var h;
  if(!authed)h=gateHtml();else if(!owner&&!me&&tab!=='set')h='<h1>Привет!</h1><p class="mut">Как тебя зовут? Сеня увидит это, когда ты его пнёшь.</p><div class="f"><input id="nm" placeholder="Твоё имя"><button class="go" onclick="saveName()">Продолжить</button></div>';
  else h=tab==='today'?today():tab==='cal'?calendar():tab==='panel'?panel():tab==='chat'?chatView():settings();
- if(authed&&tab==='today'&&view==='main'){h+=wantsHtml()+(KP?pickerHtml():'')+replyHtml()+musicHtml()}$('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
+ if(authed&&(owner||me)&&tab==='today'&&view==='main'){h+=wantsHtml()+(KP?pickerHtml():'')+replyHtml()+musicHtml()}$('main').innerHTML=h+(day?modal():'')+(ring?'<div class="alarm">⏰ Тебя пинают<button onclick="ring=false;render()">Выключить</button></div>':'');
  mountMap();var T=[['today','Сегодня'],['cal','Календарь']].concat(owner?[['panel','Панель'+(tab!=='panel'&&unreadK()?RD:'')]]:[]).concat([['chat','Чат'+(tab!=='chat'&&unread()?RD:'')],['set',owner?'⚙':'⚙ Настройки']]);
  $('nav').innerHTML=!authed?'':T.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="tab=\''+t[0]+'\';view=\'main\';day=null;MV=null;PT=null;render()">'+t[1]+'</button>'}).join('');
  var o=document.querySelector('.toast');if(o)o.remove();
